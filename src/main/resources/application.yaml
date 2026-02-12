@@ -5,9 +5,9 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/gescom_db
-    username: postgres
-    password: 123456
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -29,5 +29,5 @@ application:
   name: GesCom
   security:
     jwt:
-      secret-key: dGhpcy1pcy1hLXZlcnktc2VjdXJlLWtleS1mb3Itand0
+      secret-key: ${JWT_SECRET}
       expiration: 86400000
