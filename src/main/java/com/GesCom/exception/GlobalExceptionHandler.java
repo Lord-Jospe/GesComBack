@@ -47,4 +47,12 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", ex.getMessage()));
     }
+
+    //Cuando un usuario se encuentra inactivo
+    @ExceptionHandler(UsuarioInactivoException.class)
+    public ResponseEntity<Map<String, String>> handleUsuarioInactivo(
+            UsuarioInactivoException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("error", ex.getMessage()));
+    }
 }

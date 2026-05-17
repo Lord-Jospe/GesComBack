@@ -24,6 +24,10 @@ spring:
       org.hibernate.SQL: DEBUG
       org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
+  jackson:
+    mapper:
+      accept-case-insensitive-enums: true
+
 # Configuración JWT (fuera de spring)
 application:
   name: GesCom
@@ -31,3 +35,4 @@ application:
     jwt:
       secret-key: dGhpcy1pcy1hLXZlcnktc2VjdXJlLWtleS1mb3Itand0
       expiration: 86400000
+

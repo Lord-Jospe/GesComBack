@@ -1,6 +1,7 @@
 package com.GesCom.controller;
 
 import com.GesCom.dto.request.LoginRequest;
+import com.GesCom.dto.request.RegisterRequest;
 import com.GesCom.dto.request.RegistroEmpresaRequest;
 import com.GesCom.dto.response.AuthResponse;
 import com.GesCom.service.AuthService;
@@ -25,7 +26,7 @@ public class AuthController {
     //POST /api/auth/register
     @PostMapping("/register")
     public ResponseEntity<AuthResponse> registro(
-            @Valid @RequestBody RegistroEmpresaRequest request) {
+            @Valid @RequestBody RegisterRequest request) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(authService.registrar(request));

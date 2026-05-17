@@ -11,6 +11,6 @@ public record UsuarioResponse(
         String segundoApellido,
         String email,
         String rol,
-        boolean isActive
+        boolean activo
 ) {
 }

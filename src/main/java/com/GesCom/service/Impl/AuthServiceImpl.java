@@ -1,8 +1,10 @@
 package com.GesCom.service.Impl;
 
 import com.GesCom.dto.request.LoginRequest;
+import com.GesCom.dto.request.RegisterRequest;
 import com.GesCom.dto.request.RegistroEmpresaRequest;
 import com.GesCom.dto.response.AuthResponse;
+import com.GesCom.exception.UsuarioInactivoException;
 import com.GesCom.model.*;
 import com.GesCom.repository.*;
 import com.GesCom.security.jwt.JwtUtil;
@@ -30,56 +32,61 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public AuthResponse registrar(RegistroEmpresaRequest request) {
+    public AuthResponse registrar(RegisterRequest request) {
 
+        // 1. Validar duplicados
         if (empresaRepository.existsByRif(request.rif())) {
             throw new IllegalArgumentException("Ya existe una empresa registrada con ese RIF");
         }
-        if (empresaRepository.existsByCorreo(request.correoEmpresa())) {
-            throw new IllegalArgumentException("Ya existe una empresa registrada con ese correo");
-        }
-        if (usuarioRepository.existsByEmail(request.emailAdmin())) {
+        if (usuarioRepository.existsByEmail(request.email())) {
             throw new IllegalArgumentException("Ya existe un usuario registrado con ese correo");
         }
 
-        PlanSuscripcion plan = planRepository.findByNombre(request.planNombre())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Plan no válido: " + request.planNombre()));
+        // 2. Crear empresa
+        Empresa empresa = empresaRepository.save(
+                Empresa.builder()
+                        .nombre(request.nombreEmpresa())
+                        .rif(request.rif())
+                        .correo(request.email())
+                        .telefono(request.telefono())
+                        .monedaBase("USD")
+                        .isActive(true)
+                        .build()
+        );
 
-        Empresa empresa = Empresa.builder()
-                .nombre(request.nombreEmpresa())
-                .rif(request.rif())
-                .correo(request.correoEmpresa())
-                .monedaBase("USD")
-                .isActive(true)
-                .build();
-        empresa = empresaRepository.save(empresa);
+        // 3. Buscar plan SEMILLA y crear suscripción
+        PlanSuscripcion plan = planRepository.findByNombre("SEMILLA")
+                .orElseThrow(() -> new IllegalStateException(
+                        "Plan SEMILLA no encontrado. Verificar datos iniciales"));
 
-        Suscripcion suscripcion = Suscripcion.builder()
-                .empresa(empresa)
-                .plan(plan)
-                .fechaInicio(LocalDate.now())
-                .fechaVence(LocalDate.now().plusMonths(1))
-                .estado("ACTIVA")
-                .build();
-        suscripcionRepository.save(suscripcion);
+        suscripcionRepository.save(
+                Suscripcion.builder()
+                        .empresa(empresa)
+                        .plan(plan)
+                        .fechaInicio(LocalDate.now())
+                        .fechaVence(LocalDate.now().plusMonths(1))
+                        .estado("ACTIVA")
+                        .build()
+        );
 
+        // 4. Buscar rol ADMIN y crear usuario
         Rol rolAdmin = rolRepository.findByNombre("ADMIN")
                 .orElseThrow(() -> new IllegalStateException(
                         "Rol ADMIN no encontrado. Verificar datos iniciales"));
 
-        Usuario admin = Usuario.builder()
-                .empresa(empresa)
-                .primerNombre(request.primerNombre())
-                .segundoNombre(request.segundoNombre())
-                .primerApellido(request.primerApellido())
-                .segundoApellido(request.segundoApellido())
-                .email(request.emailAdmin())
-                .passwordHash(passwordEncoder.encode(request.password()))
-                .rol(rolAdmin)
-                .isActive(true)
-                .build();
-        admin = usuarioRepository.save(admin);
+        Usuario admin = usuarioRepository.save(
+                Usuario.builder()
+                        .empresa(empresa)
+                        .primerNombre(request.primerNombre())
+                        .segundoNombre(request.segundoNombre())
+                        .primerApellido(request.primerApellido())
+                        .segundoApellido(request.segundoApellido())
+                        .email(request.email())
+                        .passwordHash(passwordEncoder.encode(request.password()))
+                        .rol(rolAdmin)
+                        .isActive(true)
+                        .build()
+        );
 
         return buildAuthResponse(jwtUtil.generateToken(admin), admin);
     }
@@ -87,19 +94,19 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public AuthResponse login(LoginRequest request) {
 
+        Usuario usuario = usuarioRepository.findByEmail(request.email())
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+
+        if (!usuario.isActive()) {
+            throw new UsuarioInactivoException("Usuario desactivado. Contacte al administrador");
+        }
+
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.email(),
                         request.password()
                 )
         );
-
-        Usuario usuario = usuarioRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
-
-        if (!usuario.isActive()) {
-            throw new IllegalStateException("Usuario desactivado. Contacte al administrador");
-        }
 
         return buildAuthResponse(jwtUtil.generateToken(usuario), usuario);
     }

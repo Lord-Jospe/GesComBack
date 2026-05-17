@@ -2,6 +2,9 @@ package com.GesCom.service.Impl;
 
 
 import com.GesCom.dto.request.CrearUsuarioRequest;
+import com.GesCom.dto.request.EditarUsuarioRequest;
+import com.GesCom.dto.request.UsuarioFiltroRequest;
+import com.GesCom.dto.response.UsuarioPageResponse;
 import com.GesCom.dto.response.UsuarioResponse;
 import com.GesCom.model.Empresa;
 import com.GesCom.model.Rol;
@@ -15,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -26,6 +30,8 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final EmpresaRepository empresaRepository;
     private final PasswordEncoder passwordEncoder;
 
+
+    // --- Crear Usuario ----
     @Override
     @Transactional
     public UsuarioResponse crearUsuario(CrearUsuarioRequest request, Long empresaId) {
@@ -38,9 +44,9 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Empresa no encontrada"));
 
-        Rol rol = rolRepository.findByNombre(request.rolNombre())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Rol no válido: " + request.rolNombre()));
+        Rol rol = rolRepository.findByNombre(request.rol().name())
+                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + request.rol()));
+
 
         Usuario usuario = Usuario.builder()
                 .empresa(empresa)
@@ -57,6 +63,8 @@ public class UsuarioServiceImpl implements UsuarioService {
         return toResponse(usuarioRepository.save(usuario));
     }
 
+
+    // ---Obtener todos los usuarios ---
     @Override
     public List<UsuarioResponse> obtenerTodos(Long empresaId) {
         return usuarioRepository
@@ -67,37 +75,84 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     }
 
+    // --- Obtener por usuario por ID ---
+    @Override
+    @Transactional(readOnly = true)
+    public UsuarioResponse obtenerPorId(Long id, Long empresaId) {
+        Usuario usuario = obtenerUsuarioDeLaEmpresa(id, empresaId);
+        return toResponse(usuario);
+    }
+
+    // --- Editar usuario ---
     @Override
     @Transactional
-    public UsuarioResponse editarUsuario(Long id, CrearUsuarioRequest request, Long empresaId) {
+    public UsuarioResponse editarUsuario(Long id, EditarUsuarioRequest request, Long empresaId) {
+
         Usuario usuario = obtenerUsuarioDeLaEmpresa(id, empresaId);
 
-        Rol rol = rolRepository.findByNombre(request.rolNombre())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "Rol no válido: " + request.rolNombre()));
+        // Verificar email duplicado
+        if (request.email() != null
+                && !request.email().equalsIgnoreCase(usuario.getEmail())
+                && usuarioRepository.existsByEmail(request.email())) {
+            throw new IllegalArgumentException("El email ya está en uso: " + request.email());
+        }
 
-        usuario.setPrimerNombre(request.primerNombre());
-        usuario.setSegundoNombre(request.segundoNombre());
-        usuario.setPrimerApellido(request.primerApellido());
-        usuario.setSegundoApellido(request.segundoApellido());
-        usuario.setRol(rol);
+        if (request.primerNombre()    != null) usuario.setPrimerNombre(request.primerNombre());
+        if (request.segundoNombre()   != null) usuario.setSegundoNombre(request.segundoNombre());
+        if (request.primerApellido()  != null) usuario.setPrimerApellido(request.primerApellido());
+        if (request.segundoApellido() != null) usuario.setSegundoApellido(request.segundoApellido());
+        if (request.email()           != null) usuario.setEmail(request.email());
+        if (request.rol()             != null) {
+            Rol rol = rolRepository.findByNombre(request.rol().name())
+                    .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado: " + request.rol()));
+            usuario.setRol(rol);
+        }
 
-        // Solo actualiza la contraseña si viene en el request
+
         if (request.password() != null && !request.password().isBlank()) {
             usuario.setPasswordHash(passwordEncoder.encode(request.password()));
         }
 
+        usuario.setUpdatedAt(LocalDateTime.now());
+
         return toResponse(usuarioRepository.save(usuario));
     }
 
+
+    // --- Desactivar usuario ---
     @Override
     @Transactional
     public void desactivarUsuario(Long id, Long empresaId) {
         Usuario usuario = obtenerUsuarioDeLaEmpresa(id, empresaId);
+
+        if (!usuario.isActive()) {
+            throw new IllegalStateException("El usuario ya se encuentra desactivado");
+        }
         usuario.setActive(false);
+        usuario.setUpdatedAt(LocalDateTime.now());
         usuarioRepository.save(usuario);
     }
 
+    // --- Activar usuario
+    @Transactional
+    public void activarUsuario(Long id, Long empresaId) {
+        Usuario usuario = obtenerUsuarioDeLaEmpresa(id, empresaId);
+
+        if (usuario.isActive()) {
+            throw new IllegalStateException("El usuario ya se encuentra activo");
+        }
+
+        usuario.setActive(true);
+        usuario.setUpdatedAt(LocalDateTime.now());
+        usuarioRepository.save(usuario);
+    }
+
+    // --- Paginación y filtros
+    @Override
+    @Transactional(readOnly = true)
+    public UsuarioPageResponse obtenerPaginado(Long empresaId, UsuarioFiltroRequest filtro) {
+        return null;
+    }
 
     // Verifica que el usuario pertenezca a la empresa
     // del admin que ejecuta la operación — evita que
@@ -118,7 +173,9 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .segundoApellido(u.getSegundoApellido())
                 .email(u.getEmail())
                 .rol(u.getRol().getNombre())
-                .isActive(u.isActive())
+                .activo(u.isActive())
                 .build();
     }
+
+
 }

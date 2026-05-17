@@ -2,6 +2,7 @@ package com.GesCom.controller;
 
 
 import com.GesCom.dto.request.CrearUsuarioRequest;
+import com.GesCom.dto.request.EditarUsuarioRequest;
 import com.GesCom.dto.response.UsuarioResponse;
 import com.GesCom.model.Usuario;
 import com.GesCom.repository.UsuarioRepository;
@@ -24,7 +25,7 @@ public class UsuarioController {
 
     private final UsuarioService usuarioService;
 
-    // POST /api/usuarios
+    // POST /api/users
     // Solo ADMIN puede crear usuarios internos
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -38,7 +39,7 @@ public class UsuarioController {
                 .body(usuarioService.crearUsuario(request, empresaId));
     }
 
-    //GET /api/usuarios
+    //GET /api/users
     // Solo ADMIN ve los usuarios de su empresa
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -49,27 +50,53 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.obtenerTodos(empresaId));
     }
 
-    //PUT /api/usuarios/{id}
+    // GET /api/users/{id}
+    @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UsuarioResponse> obtenerPorId(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioDetails usuarioDetails) {
+
+        Long empresaId = usuarioDetails.getUsuario().getEmpresa().getEmpresaId();
+        return ResponseEntity.ok(usuarioService.obtenerPorId(id, empresaId));
+    }
+
+    //PUT /api/users/{id}
+    //Editar usuario
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UsuarioResponse> editarUsuario(
             @PathVariable Long id,
-            @Valid @RequestBody CrearUsuarioRequest request,
+            @Valid @RequestBody EditarUsuarioRequest request,
             @AuthenticationPrincipal UsuarioDetails usuarioDetails) {
 
         Long empresaId = usuarioDetails.getUsuario().getEmpresa().getEmpresaId();
+
         return ResponseEntity.ok(usuarioService.editarUsuario(id, request, empresaId));
     }
 
     // DELETE /api/usuarios/{id} — baja lógica, no física
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> desactivarUsuario(
+    public ResponseEntity<String> desactivarUsuario(
             @PathVariable Long id,
             @AuthenticationPrincipal UsuarioDetails usuarioDetails) {
 
         Long empresaId = usuarioDetails.getUsuario().getEmpresa().getEmpresaId();
         usuarioService.desactivarUsuario(id, empresaId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok("Usuario desactivado exitosamente");
+    }
+
+    //PATCH /{id}/active
+    //Metodo para activar al usuario
+    @PatchMapping("/{id}/active")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<String> activarUsuario(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioDetails usuarioDetails) {
+
+        Long empresaId = usuarioDetails.getUsuario().getEmpresa().getEmpresaId();
+        usuarioService.activarUsuario(id, empresaId);
+        return ResponseEntity.ok("Usuario activado exitosamente");
     }
 }
