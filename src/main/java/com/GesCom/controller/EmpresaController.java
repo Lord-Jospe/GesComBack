@@ -21,7 +21,7 @@ public class EmpresaController {
 
     // GET /api/company
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmpresaResponse> obtenerPerfil(
             @AuthenticationPrincipal UsuarioDetails ud) {
 

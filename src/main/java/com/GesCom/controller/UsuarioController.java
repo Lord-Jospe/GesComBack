@@ -99,4 +99,23 @@ public class UsuarioController {
         usuarioService.activarUsuario(id, empresaId);
         return ResponseEntity.ok("Usuario activado exitosamente");
     }
+
+    // GET api/users/me
+    @GetMapping("/me")
+    public ResponseEntity<UsuarioResponse> obtenerPerfil(
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        Long empresaId = ud.getUsuario().getEmpresa().getEmpresaId();
+        return ResponseEntity.ok(
+                usuarioService.obtenerPorId(ud.getUsuario().getUsuarioId(), empresaId));
+    }
+
+    // PUT api/users/me
+    @PutMapping("/me")
+    public ResponseEntity<UsuarioResponse> editarPerfil(
+            @Valid @RequestBody EditarUsuarioRequest request,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        Long empresaId = ud.getUsuario().getEmpresa().getEmpresaId();
+        return ResponseEntity.ok(
+                usuarioService.editarUsuario(ud.getUsuario().getUsuarioId(), request, empresaId));
+    }
 }

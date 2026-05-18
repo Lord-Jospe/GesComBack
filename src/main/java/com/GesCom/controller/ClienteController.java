@@ -16,13 +16,13 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/customers")
+@RequestMapping("/customer")
 @RequiredArgsConstructor
 public class ClienteController {
 
     private final ClienteService clienteService;
 
-    // POST /api/customers
+    // POST /api/customer
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
     public ResponseEntity<ClienteResponse> crearCliente(
@@ -35,7 +35,7 @@ public class ClienteController {
     }
 
 
-    // GET /api/customers
+    // GET /api/customer
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
     public ResponseEntity<List<ClienteResponse>> obtenerTodos(
@@ -45,7 +45,7 @@ public class ClienteController {
         return ResponseEntity.ok(clienteService.obtenerTodos(empresaId));
     }
 
-    // GET /api/customers/{id}
+    // GET /api/customer/{id}
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
     public ResponseEntity<ClienteResponse> obtenerPorId(
@@ -56,7 +56,7 @@ public class ClienteController {
         return ResponseEntity.ok(clienteService.obtenerPorId(id, empresaId));
     }
 
-    // PUT /api/customers/{id}
+    // PUT /api/customer/{id}
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
     public ResponseEntity<ClienteResponse> editarCliente(
@@ -68,7 +68,7 @@ public class ClienteController {
         return ResponseEntity.ok(clienteService.editarCliente(id, request, empresaId));
     }
 
-    // DELETE /api/customers/{id}
+    // DELETE /api/customer/{id}
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> desactivarCliente(
@@ -80,7 +80,7 @@ public class ClienteController {
         return ResponseEntity.ok("Cliente desactivado exitosamente");
     }
 
-    //PATCH api/customers/{id}/activate
+    //PATCH api/customer/{id}/activate
     @PatchMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> activarCliente(
