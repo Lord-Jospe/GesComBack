@@ -19,7 +19,7 @@ public class EmpresaController {
 
     private final EmpresaService empresaService;
 
-    // GET /api/empresa
+    // GET /api/company
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmpresaResponse> obtenerPerfil(
@@ -29,7 +29,7 @@ public class EmpresaController {
         return ResponseEntity.ok(empresaService.obtenerPerfil(empresaId));
     }
 
-    // PUT /api/empresa
+    // PUT /api/company
     @PutMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<EmpresaResponse> editarPerfil(
@@ -40,8 +40,8 @@ public class EmpresaController {
         return ResponseEntity.ok(empresaService.editarPerfil(empresaId, request));
     }
 
-    // PATCH /api/empresa/moneda
-    @PatchMapping("/moneda")
+    // PATCH /api/company/money
+    @PatchMapping("/money")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> cambiarMoneda(
             @Valid @RequestBody MonedaRequest request,

@@ -89,7 +89,7 @@ public class UsuarioController {
 
     //PATCH /{id}/active
     //Metodo para activar al usuario
-    @PatchMapping("/{id}/active")
+    @PatchMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> activarUsuario(
             @PathVariable Long id,
