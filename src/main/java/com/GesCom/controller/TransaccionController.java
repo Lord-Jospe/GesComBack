@@ -5,10 +5,13 @@ import com.GesCom.dto.request.EditarTransaccionRequest;
 import com.GesCom.dto.request.FiltroTransaccionRequest;
 import com.GesCom.dto.response.TransaccionResponse;
 import com.GesCom.security.user.UsuarioDetails;
+import com.GesCom.service.FacturaPdfService;
 import com.GesCom.service.TransaccionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,6 +26,7 @@ import java.util.Map;
 public class TransaccionController {
 
     private final TransaccionService transaccionService;
+    private final FacturaPdfService facturaPdfService;
 
     // POST /api/transactions  — RF-24, RF-30
     @PostMapping
@@ -90,6 +94,20 @@ public class TransaccionController {
         return ResponseEntity.ok(
                 transaccionService.cuentasPorCobrar(
                         ud.getUsuario().getEmpresa().getEmpresaId()));
+    }
+
+    // GET /api/transactions/{id}/invoice  — RF-29
+    @GetMapping("/{id}/invoice")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<byte[]> descargarFactura(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        byte[] pdf = facturaPdfService.generarFactura(id,
+                ud.getUsuario().getEmpresa().getEmpresaId());
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_PDF);
+        headers.setContentDispositionFormData("attachment", "factura-" + id + ".pdf");
+        return ResponseEntity.ok().headers(headers).body(pdf);
     }
 
     // GET /api/transactions/payable  — RF-33
