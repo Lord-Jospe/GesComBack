@@ -38,7 +38,8 @@ public class TransaccionServiceImpl implements TransaccionService {
         Empresa empresa = empresaRepository.findById(empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
 
-        validarTipoTransaccion(request, empresaId);
+        Cliente cliente = resolverCliente(request, empresaId);
+        Proveedor proveedor = resolverProveedor(request, empresaId);
 
         // ─── 1. Obtener tasa BCV del día ───────────────────────────
         BigDecimal tasaBcv = tasaBcvRepository
@@ -140,6 +141,8 @@ public class TransaccionServiceImpl implements TransaccionService {
         Transaccion transaccion = Transaccion.builder()
                 .empresa(empresa)
                 .tipo(request.tipo())
+                .cliente(cliente)
+                .proveedor(proveedor)
                 .fecha(request.fecha())
                 .moneda(request.moneda())
                 .tasaBcvUsada(tasaBcv)
@@ -272,20 +275,26 @@ public class TransaccionServiceImpl implements TransaccionService {
 
     // ─── Métodos privados ──────────────────────────────────────────
 
-    private void validarTipoTransaccion(CrearTransaccionRequest request, Long empresaId) {
+    private Cliente resolverCliente(CrearTransaccionRequest request, Long empresaId) {
         if (request.tipo() == TipoTransaccion.INGRESO) {
             if (request.clienteId() == null) {
-                throw new IllegalArgumentException("Una transacción de INGRESO requiere un cliente");
+                throw new IllegalArgumentException("INGRESO requiere un cliente");
             }
-            clienteRepository.findByClienteIdAndEmpresa_EmpresaId(request.clienteId(), empresaId)
+            return clienteRepository.findByClienteIdAndEmpresa_EmpresaId(request.clienteId(), empresaId)
                     .orElseThrow(() -> new EntityNotFoundException("Cliente no encontrado"));
-        } else if (request.tipo() == TipoTransaccion.EGRESO) {
+        }
+        return null;
+    }
+
+    private Proveedor resolverProveedor(CrearTransaccionRequest request, Long empresaId) {
+        if (request.tipo() == TipoTransaccion.EGRESO) {
             if (request.proveedorId() == null) {
-                throw new IllegalArgumentException("Una transacción de EGRESO requiere un proveedor");
+                throw new IllegalArgumentException("EGRESO requiere un proveedor");
             }
-            proveedorRepository.findByProveedorIdAndEmpresa_EmpresaId(request.proveedorId(), empresaId)
+            return proveedorRepository.findByProveedorIdAndEmpresa_EmpresaId(request.proveedorId(), empresaId)
                     .orElseThrow(() -> new EntityNotFoundException("Proveedor no encontrado"));
         }
+        return null;
     }
 
     private String generarNumeroFactura(Empresa empresa) {
