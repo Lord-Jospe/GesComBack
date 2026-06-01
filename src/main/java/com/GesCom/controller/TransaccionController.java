@@ -3,6 +3,8 @@ package com.GesCom.controller;
 import com.GesCom.dto.request.CrearTransaccionRequest;
 import com.GesCom.dto.request.EditarTransaccionRequest;
 import com.GesCom.dto.request.FiltroTransaccionRequest;
+import com.GesCom.dto.request.RegistrarPagoRequest;
+import com.GesCom.dto.response.PagoResponse;
 import com.GesCom.dto.response.TransaccionResponse;
 import com.GesCom.security.user.UsuarioDetails;
 import com.GesCom.service.FacturaPdfService;
@@ -108,6 +110,29 @@ public class TransaccionController {
         headers.setContentType(MediaType.APPLICATION_PDF);
         headers.setContentDispositionFormData("attachment", "factura-" + id + ".pdf");
         return ResponseEntity.ok().headers(headers).body(pdf);
+    }
+
+    // POST /api/transactions/{id}/payments  — RF-32, RF-33
+    @PostMapping("/{id}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
+    public ResponseEntity<PagoResponse> registrarPago(
+            @PathVariable Long id,
+            @Valid @RequestBody RegistrarPagoRequest request,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(transaccionService.registrarPago(id, request,
+                        ud.getUsuario().getEmpresa().getEmpresaId()));
+    }
+
+    // GET /api/transactions/{id}/payments
+    @GetMapping("/{id}/payments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<List<PagoResponse>> historialPagos(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        return ResponseEntity.ok(
+                transaccionService.historialPagos(id,
+                        ud.getUsuario().getEmpresa().getEmpresaId()));
     }
 
     // GET /api/transactions/payable  — RF-33

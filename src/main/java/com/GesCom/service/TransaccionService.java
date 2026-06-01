@@ -3,6 +3,8 @@ package com.GesCom.service;
 import com.GesCom.dto.request.CrearTransaccionRequest;
 import com.GesCom.dto.request.EditarTransaccionRequest;
 import com.GesCom.dto.request.FiltroTransaccionRequest;
+import com.GesCom.dto.request.RegistrarPagoRequest;
+import com.GesCom.dto.response.PagoResponse;
 import com.GesCom.dto.response.TransaccionResponse;
 
 import java.util.List;
@@ -19,7 +21,11 @@ public interface TransaccionService {
 
     void anular(Long id, String motivo, Long empresaId);
 
-    List<TransaccionResponse> cuentasPorCobrar(Long empresaId);
+    // ─── Pagos ────────────────────────────────────────────────────
+    PagoResponse registrarPago(Long transaccionId, RegistrarPagoRequest request, Long empresaId);
+    List<PagoResponse> historialPagos(Long transaccionId, Long empresaId);
 
+    // ─── Cuentas ──────────────────────────────────────────────────
+    List<TransaccionResponse> cuentasPorCobrar(Long empresaId);
     List<TransaccionResponse> cuentasPorPagar(Long empresaId);
 }

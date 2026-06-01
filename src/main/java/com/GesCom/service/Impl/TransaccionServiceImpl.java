@@ -28,6 +28,7 @@ public class TransaccionServiceImpl implements TransaccionService {
     private final ClienteRepository clienteRepository;
     private final ProveedorRepository proveedorRepository;
     private final TasaBcvRepository tasaBcvRepository;
+    private final PagoRepository pagoRepository;
 
     private static final BigDecimal IGTF_RATE = new BigDecimal("3.00");
 
@@ -256,6 +257,59 @@ public class TransaccionServiceImpl implements TransaccionService {
     }
 
     @Override
+    @Transactional
+    public PagoResponse registrarPago(Long transaccionId, RegistrarPagoRequest request, Long empresaId) {
+        Transaccion t = buscar(transaccionId, empresaId);
+
+        if (t.getEstado() == EstadoTransaccion.ANULADA) {
+            throw new IllegalStateException("No se puede pagar una transacción anulada");
+        }
+        if (t.getEstado() == EstadoTransaccion.PAGADA) {
+            throw new IllegalStateException("Esta transacción ya está totalmente pagada");
+        }
+
+        // Calcular saldo pendiente
+        BigDecimal totalPagado = pagoRepository.sumMontoByTransaccionId(transaccionId);
+        BigDecimal pendiente = t.getTotal().subtract(totalPagado);
+
+        if (request.monto().compareTo(pendiente) > 0) {
+            throw new IllegalArgumentException(
+                    "El monto del pago ($" + request.monto() + ") excede el saldo pendiente ($" + pendiente + ")");
+        }
+
+        Pago pago = pagoRepository.save(Pago.builder()
+                .transaccion(t)
+                .monto(request.monto())
+                .fecha(request.fecha())
+                .metodoPago(request.metodoPago())
+                .referencia(request.referencia())
+                .notas(request.notas())
+                .build());
+
+        // Actualizar estado de la transacción
+        BigDecimal nuevoTotalPagado = totalPagado.add(request.monto());
+        if (nuevoTotalPagado.compareTo(t.getTotal()) >= 0) {
+            t.setEstado(EstadoTransaccion.PAGADA);
+        } else {
+            t.setEstado(EstadoTransaccion.PARCIAL);
+        }
+        transaccionRepository.save(t);
+
+        log.info("Pago registrado: transacción={}, monto={}, estado={}",
+                transaccionId, request.monto(), t.getEstado());
+
+        return toPagoResponse(pago);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PagoResponse> historialPagos(Long transaccionId, Long empresaId) {
+        buscar(transaccionId, empresaId); // verifica que pertenece a la empresa
+        return pagoRepository.findByTransaccion_TransaccionIdOrderByFechaDesc(transaccionId)
+                .stream().map(this::toPagoResponse).toList();
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<TransaccionResponse> cuentasPorCobrar(Long empresaId) {
         return transaccionRepository
@@ -312,8 +366,20 @@ public class TransaccionServiceImpl implements TransaccionService {
     }
 
     private boolean tienePagosRegistrados(Transaccion t) {
-        // Se implementará en el módulo de pagos (Paso 6)
-        return false;
+        return pagoRepository.existsByTransaccion_TransaccionId(t.getTransaccionId());
+    }
+
+    private PagoResponse toPagoResponse(Pago p) {
+        return new PagoResponse(
+                p.getPagoId(),
+                p.getTransaccion().getTransaccionId(),
+                p.getMonto(),
+                p.getFecha(),
+                p.getMetodoPago().name(),
+                p.getReferencia(),
+                p.getNotas(),
+                p.getCreatedAt()
+        );
     }
 
     private Transaccion buscar(Long id, Long empresaId) {

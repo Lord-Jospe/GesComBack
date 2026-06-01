@@ -37,7 +37,7 @@ public class ProveedorServiceImpl implements ProveedorService {
                         .empresa(empresa)
                         .nombre(request.nombre())
                         .rif(request.rif())
-                        .correo(request.correo())
+                        .email(request.email())
                         .telefono(request.telefono())
                         .categoria(request.categoria())
                         .isActive(true)
@@ -59,7 +59,7 @@ public class ProveedorServiceImpl implements ProveedorService {
 
         if (request.nombre()    != null) proveedor.setNombre(request.nombre());
         if (request.rif()       != null) proveedor.setRif(request.rif());
-        if (request.correo()    != null) proveedor.setCorreo(request.correo());
+        if (request.email()    != null) proveedor.setEmail(request.email());
         if (request.telefono()  != null) proveedor.setTelefono(request.telefono());
         if (request.categoria() != null) proveedor.setCategoria(request.categoria());
 
@@ -113,7 +113,7 @@ public class ProveedorServiceImpl implements ProveedorService {
                 p.getProveedorId(),
                 p.getNombre(),
                 p.getRif(),
-                p.getCorreo(),
+                p.getEmail(),
                 p.getTelefono(),
                 p.getCategoria().name(),
                 p.isActive(),

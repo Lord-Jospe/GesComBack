@@ -5,6 +5,7 @@ import com.GesCom.enums.TipoTransaccion;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -21,6 +22,7 @@ public record CrearTransaccionRequest(
         LocalDate fecha,
 
         @NotNull(message = "La moneda es obligatoria")
+        @Pattern(regexp = "USD|VES", message = "La moneda debe ser USD o VES")
         String moneda,
 
         @NotNull(message = "El método de pago es obligatorio")
