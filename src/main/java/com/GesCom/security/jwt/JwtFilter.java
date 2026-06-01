@@ -26,7 +26,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final UsuarioDetailsService usuarioDetailsService;
-    private final UsuarioRepository usuarioRepository;
 
 
     @Override
@@ -34,35 +33,30 @@ public class JwtFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        if(request.getServletPath().contains("/auth")) {
+        if (request.getServletPath().contains("/auth")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         final String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if(authHeader == null || !authHeader.startsWith("Bearer ")) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         final String jwtToken = authHeader.substring(7);
         final String userEmail = jwtUtil.extractUsername(jwtToken);
-        if(userEmail == null || SecurityContextHolder.getContext().getAuthentication() != null) {
+
+        if (userEmail == null || SecurityContextHolder.getContext().getAuthentication() != null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-
-        final UserDetails usuarioDetails = this.usuarioDetailsService.loadUserByUsername(userEmail);
-
+        // Una sola query a BD — el usuario ya viene dentro de UsuarioDetails
+        final UsuarioDetails usuarioDetails =
+                (UsuarioDetails) usuarioDetailsService.loadUserByUsername(userEmail);
 
         if (!jwtUtil.isTokenValid(jwtToken, usuarioDetails)) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        final Optional<Usuario> usuario = usuarioRepository.findByEmail(usuarioDetails.getUsername());
-        if(usuario.isEmpty()) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -70,13 +64,12 @@ public class JwtFilter extends OncePerRequestFilter {
         final var authToken = new UsernamePasswordAuthenticationToken(
                 usuarioDetails,
                 null,
-                usuarioDetails.getAuthorities());
+                usuarioDetails.getAuthorities()
+        );
 
         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
         SecurityContextHolder.getContext().setAuthentication(authToken);
 
         filterChain.doFilter(request, response);
-
     }
 }

@@ -1,6 +1,7 @@
 package com.GesCom.security.user;
 
 import com.GesCom.model.Usuario;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -9,7 +10,9 @@ import java.util.Collection;
 import java.util.List;
 
 public class UsuarioDetails implements UserDetails {
-    private Usuario usuario;
+
+    @Getter
+    private final Usuario usuario;
 
     public UsuarioDetails(Usuario usuario) {
         this.usuario = usuario;
@@ -18,13 +21,13 @@ public class UsuarioDetails implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(
-                new SimpleGrantedAuthority("ROLE_" + usuario.getRol().getRol())
+                new SimpleGrantedAuthority("ROLE_" + usuario.getRol().getNombre())
         );
     }
 
     @Override
     public String getPassword() {
-        return usuario.getPassword();
+        return usuario.getPasswordHash();
     }
 
     @Override
@@ -49,10 +52,7 @@ public class UsuarioDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return usuario.getIsActive();
+        return usuario.isActive();
     }
 
-    public Usuario getUsuario() {
-        return usuario;
-    }
 }
