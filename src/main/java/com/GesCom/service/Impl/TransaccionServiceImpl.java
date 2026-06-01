@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -310,6 +312,51 @@ public class TransaccionServiceImpl implements TransaccionService {
     }
 
     @Override
+    @Transactional
+    public TransaccionResponse emitirNotaCredito(Long transaccionOrigenId, String motivo,
+                                                  BigDecimal monto, Long empresaId) {
+        Transaccion origen = buscar(transaccionOrigenId, empresaId);
+
+        if (origen.getTipo() != TipoTransaccion.INGRESO) {
+            throw new IllegalArgumentException("Solo se puede emitir nota de crédito sobre facturas de INGRESO");
+        }
+        if (origen.getEstado() == EstadoTransaccion.ANULADA) {
+            throw new IllegalArgumentException("No se puede emitir nota de crédito sobre una factura anulada");
+        }
+
+        Transaccion nota = Transaccion.builder()
+                .empresa(origen.getEmpresa())
+                .tipo(TipoTransaccion.NOTA_CREDITO)
+                .cliente(origen.getCliente())
+                .fecha(LocalDate.now())
+                .moneda(origen.getMoneda())
+                .tasaBcvUsada(origen.getTasaBcvUsada())
+                .subtotal(monto.negate())
+                .ivaPorcentaje(origen.getIvaPorcentaje())
+                .ivaMonto(origen.getIvaMonto() != null
+                        ? origen.getIvaMonto().negate() : BigDecimal.ZERO)
+                .igtfAplica(origen.isIgtfAplica())
+                .igtfMonto(origen.getIgtfMonto() != null
+                        ? origen.getIgtfMonto().negate() : BigDecimal.ZERO)
+                .total(monto.negate())
+                .totalUsd(origen.getTotalUsd() != null
+                        ? origen.getTotalUsd().negate() : null)
+                .totalVes(origen.getTotalVes() != null
+                        ? origen.getTotalVes().negate() : null)
+                .metodoPago(origen.getMetodoPago())
+                .estado(EstadoTransaccion.PAGADA) // la nota de crédito se aplica de inmediato
+                .notas("Nota de crédito — Factura " + origen.getNumeroFactura() + ". Motivo: " + motivo)
+                .transaccionOrigenId(transaccionOrigenId)
+                .build();
+
+        transaccionRepository.save(nota);
+        log.info("Nota de crédito emitida: id={}, factura={}, monto={}",
+                nota.getTransaccionId(), origen.getNumeroFactura(), monto);
+
+        return toResponse(nota);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<TransaccionResponse> cuentasPorCobrar(Long empresaId) {
         return transaccionRepository
@@ -402,6 +449,25 @@ public class TransaccionServiceImpl implements TransaccionService {
                 .toList()
                 : List.of();
 
+        // ─── Indicador de vencimiento ──────────────────────────
+        long dias = 0;
+        String indicador = null;
+        BigDecimal saldoPendiente = BigDecimal.ZERO;
+
+        if (t.getEstado() == EstadoTransaccion.PENDIENTE
+                || t.getEstado() == EstadoTransaccion.PARCIAL) {
+            dias = ChronoUnit.DAYS.between(t.getFecha(), LocalDate.now());
+            if (dias <= 15) {
+                indicador = "VERDE";
+            } else if (dias <= 30) {
+                indicador = "AMARILLO";
+            } else {
+                indicador = "ROJO";
+            }
+            BigDecimal totalPagado = pagoRepository.sumMontoByTransaccionId(t.getTransaccionId());
+            saldoPendiente = t.getTotal().subtract(totalPagado != null ? totalPagado : BigDecimal.ZERO);
+        }
+
         return new TransaccionResponse(
                 t.getTransaccionId(),
                 t.getEmpresa().getEmpresaId(),
@@ -429,6 +495,9 @@ public class TransaccionServiceImpl implements TransaccionService {
                 t.getMotivoAnulacion(),
                 t.getNotas(),
                 lineasResp,
+                dias,
+                indicador,
+                saldoPendiente,
                 t.getCreatedAt()
         );
     }

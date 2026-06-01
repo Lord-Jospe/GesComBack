@@ -183,6 +183,20 @@ public class TransaccionController {
         return ResponseEntity.ok(Map.of("mensaje", "Archivo eliminado exitosamente"));
     }
 
+    // POST /api/transactions/{id}/credit-note  — RF-35
+    @PostMapping("/{id}/credit-note")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
+    public ResponseEntity<TransaccionResponse> emitirNotaCredito(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        String motivo = body.getOrDefault("motivo", "Sin motivo especificado");
+        BigDecimal monto = new java.math.BigDecimal(body.getOrDefault("monto", "0"));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(transaccionService.emitirNotaCredito(id, motivo, monto,
+                        ud.getUsuario().getEmpresa().getEmpresaId()));
+    }
+
     // GET /api/transactions/payable  — RF-33
     @GetMapping("/payable")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")

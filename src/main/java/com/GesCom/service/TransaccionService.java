@@ -25,6 +25,10 @@ public interface TransaccionService {
     PagoResponse registrarPago(Long transaccionId, RegistrarPagoRequest request, Long empresaId);
     List<PagoResponse> historialPagos(Long transaccionId, Long empresaId);
 
+    // ─── Nota de crédito ──────────────────────────────────────────
+    TransaccionResponse emitirNotaCredito(Long transaccionOrigenId, String motivo,
+                                          BigDecimal monto, Long empresaId);
+
     // ─── Cuentas ──────────────────────────────────────────────────
     List<TransaccionResponse> cuentasPorCobrar(Long empresaId);
     List<TransaccionResponse> cuentasPorPagar(Long empresaId);

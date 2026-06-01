@@ -32,5 +32,8 @@ public record TransaccionResponse(
         String motivoAnulacion,
         String notas,
         List<TransaccionLineaResponse> lineas,
+        long diasTranscurridos,
+        String indicadorVencimiento,
+        BigDecimal saldoPendiente,
         LocalDateTime createdAt
 ) {}
