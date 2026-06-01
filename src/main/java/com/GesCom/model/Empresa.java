@@ -45,6 +45,23 @@ public class Empresa {
     @Column(name = "moneda_base", length = 5)
     private String monedaBase = "USD";
 
+    // ─── Configuración fiscal ─────────────────────────────────────
+    @Column(name = "iva_activo", nullable = false)
+    private boolean ivaActivo = true;
+
+    @Column(name = "iva_porcentaje", precision = 5, scale = 2)
+    private java.math.BigDecimal ivaPorcentaje = new java.math.BigDecimal("16.00");
+
+    @Column(name = "igtf_activo", nullable = false)
+    private boolean igtfActivo = false;
+
+    // ─── Numeración de facturas ───────────────────────────────────
+    @Column(name = "factura_prefijo", length = 10)
+    private String facturaPrefijo;
+
+    @Column(name = "factura_siguiente_numero", nullable = false)
+    private Integer facturaSiguienteNumero = 1;
+
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 

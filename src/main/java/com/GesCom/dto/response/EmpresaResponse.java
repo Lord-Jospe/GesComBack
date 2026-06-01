@@ -1,5 +1,6 @@
 package com.GesCom.dto.response;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 public record EmpresaResponse(
@@ -13,6 +14,16 @@ public record EmpresaResponse(
         String actividad,
         String monedaBase,
         boolean isActive,
+
+        // Configuración fiscal
+        boolean ivaActivo,
+        BigDecimal ivaPorcentaje,
+        boolean igtfActivo,
+
+        // Numeración de facturas
+        String facturaPrefijo,
+        Integer facturaSiguienteNumero,
+
         LocalDateTime createdAt
 ) {
 }

@@ -8,7 +8,4 @@ public interface EmpresaService {
     EmpresaResponse obtenerPerfil(Long empresaId);
     EmpresaResponse editarPerfil(Long empresaId, EditarEmpresaRequest request);
     void cambiarMoneda(Long empresaId, MonedaRequest request);
-
-    //TasaBcvResponse registrarTasa(Long empresaId, TasaBcvRequest request, Long usuarioId);
-    //List<TasaBcvResponse> historialTasas(Long empresaId);
 }

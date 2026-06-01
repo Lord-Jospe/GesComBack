@@ -3,6 +3,8 @@ package com.GesCom.dto.request;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Size;
 
+import java.math.BigDecimal;
+
 public record EditarEmpresaRequest(
         @Size(max = 100)
         String nombre,
@@ -24,6 +26,16 @@ public record EditarEmpresaRequest(
 
         @Email(message = "Formato de correo inválido")
         @Size(max = 255)
-        String correo
+        String correo,
+
+        // Configuración fiscal
+        Boolean ivaActivo,
+        BigDecimal ivaPorcentaje,
+        Boolean igtfActivo,
+
+        // Numeración de facturas
+        @Size(max = 10)
+        String facturaPrefijo,
+        Integer facturaSiguienteNumero
 ) {
 }

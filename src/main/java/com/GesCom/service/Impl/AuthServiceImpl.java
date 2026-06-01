@@ -2,7 +2,6 @@ package com.GesCom.service.Impl;
 
 import com.GesCom.dto.request.LoginRequest;
 import com.GesCom.dto.request.RegisterRequest;
-import com.GesCom.dto.request.RegistroEmpresaRequest;
 import com.GesCom.dto.response.AuthResponse;
 import com.GesCom.exception.UsuarioInactivoException;
 import com.GesCom.model.*;
@@ -50,6 +49,10 @@ public class AuthServiceImpl implements AuthService {
                         .correo(request.email())
                         .telefono(request.telefono())
                         .monedaBase("USD")
+                        .ivaActivo(true)
+                        .ivaPorcentaje(new java.math.BigDecimal("16.00"))
+                        .igtfActivo(false)
+                        .facturaSiguienteNumero(1)
                         .isActive(true)
                         .build()
         );

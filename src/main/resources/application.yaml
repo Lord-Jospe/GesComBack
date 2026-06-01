@@ -15,18 +15,35 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
+    defer-datasource-initialization: true
     properties:
       hibernate:
         format_sql: true
 
-  logging:
-    level:
-      org.hibernate.SQL: DEBUG
-      org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  sql:
+    init:
+      mode: never
 
   jackson:
     mapper:
       accept-case-insensitive-enums: true
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+logging:
+  level:
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 # Configuración JWT (fuera de spring)
 application:
@@ -35,4 +52,3 @@ application:
     jwt:
       secret-key: dGhpcy1pcy1hLXZlcnktc2VjdXJlLWtleS1mb3Itand0
       expiration: 86400000
-

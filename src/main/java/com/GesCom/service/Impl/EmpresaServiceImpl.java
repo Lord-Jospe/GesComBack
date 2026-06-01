@@ -26,6 +26,7 @@ public class EmpresaServiceImpl implements EmpresaService {
     }
 
     @Override
+    @Transactional
     public EmpresaResponse editarPerfil(Long empresaId, EditarEmpresaRequest request) {
         Empresa empresa = buscarEmpresa(empresaId);
 
@@ -40,14 +41,12 @@ public class EmpresaServiceImpl implements EmpresaService {
 
         if (request.correo() != null
                 && !request.correo().equalsIgnoreCase(empresa.getCorreo())) {
-
             if (empresaRepository.existsByCorreo(request.correo())) {
                 throw new IllegalArgumentException("El correo ya está registrado por otra empresa");
             }
             if (usuarioRepository.existsByEmail(request.correo())) {
                 throw new IllegalArgumentException("El correo ya está en uso por un usuario");
             }
-
             empresa.setCorreo(request.correo());
         }
 
@@ -55,6 +54,15 @@ public class EmpresaServiceImpl implements EmpresaService {
         if (request.telefono()  != null) empresa.setTelefono(request.telefono());
         if (request.actividad() != null) empresa.setActividad(request.actividad());
         if (request.logoUrl()   != null) empresa.setLogoUrl(request.logoUrl());
+
+        // ─── Configuración fiscal ─────────────────────────────────
+        if (request.ivaActivo()      != null) empresa.setIvaActivo(request.ivaActivo());
+        if (request.ivaPorcentaje()  != null) empresa.setIvaPorcentaje(request.ivaPorcentaje());
+        if (request.igtfActivo()     != null) empresa.setIgtfActivo(request.igtfActivo());
+
+        // ─── Numeración de facturas ───────────────────────────────
+        if (request.facturaPrefijo()         != null) empresa.setFacturaPrefijo(request.facturaPrefijo());
+        if (request.facturaSiguienteNumero() != null) empresa.setFacturaSiguienteNumero(request.facturaSiguienteNumero());
 
         return toResponse(empresaRepository.save(empresa));
     }
@@ -66,7 +74,6 @@ public class EmpresaServiceImpl implements EmpresaService {
         empresa.setMonedaBase(request.moneda());
         empresaRepository.save(empresa);
     }
-
 
     private Empresa buscarEmpresa(Long empresaId) {
         return empresaRepository.findById(empresaId)
@@ -85,6 +92,11 @@ public class EmpresaServiceImpl implements EmpresaService {
                 e.getActividad(),
                 e.getMonedaBase(),
                 e.isActive(),
+                e.isIvaActivo(),
+                e.getIvaPorcentaje(),
+                e.isIgtfActivo(),
+                e.getFacturaPrefijo(),
+                e.getFacturaSiguienteNumero(),
                 e.getCreatedAt()
         );
     }
