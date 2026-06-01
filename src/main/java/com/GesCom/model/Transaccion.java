@@ -83,6 +83,12 @@ public class Transaccion {
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal total;
 
+    @Column(name = "total_usd", precision = 14, scale = 2)
+    private BigDecimal totalUsd;
+
+    @Column(name = "total_ves", precision = 14, scale = 2)
+    private BigDecimal totalVes;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "metodo_pago", nullable = false, length = 20)
     private MetodoPago metodoPago;

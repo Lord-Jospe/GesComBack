@@ -25,6 +25,8 @@ public record TransaccionResponse(
         BigDecimal descuentoGlobalPorcentaje,
         BigDecimal descuentoGlobalMonto,
         BigDecimal total,
+        BigDecimal totalUsd,
+        BigDecimal totalVes,
         String metodoPago,
         String estado,
         String motivoAnulacion,
