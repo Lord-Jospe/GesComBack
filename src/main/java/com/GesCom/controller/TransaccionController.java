@@ -7,6 +7,8 @@ import com.GesCom.dto.request.RegistrarPagoRequest;
 import com.GesCom.dto.response.PagoResponse;
 import com.GesCom.dto.response.TransaccionResponse;
 import com.GesCom.security.user.UsuarioDetails;
+import com.GesCom.dto.response.AdjuntoResponse;
+import com.GesCom.service.AdjuntoService;
 import com.GesCom.service.FacturaPdfService;
 import com.GesCom.service.TransaccionService;
 import jakarta.validation.Valid;
@@ -29,6 +31,7 @@ public class TransaccionController {
 
     private final TransaccionService transaccionService;
     private final FacturaPdfService facturaPdfService;
+    private final AdjuntoService adjuntoService;
 
     // POST /api/transactions  — RF-24, RF-30
     @PostMapping
@@ -133,6 +136,51 @@ public class TransaccionController {
         return ResponseEntity.ok(
                 transaccionService.historialPagos(id,
                         ud.getUsuario().getEmpresa().getEmpresaId()));
+    }
+
+    // POST /api/transactions/{id}/attachments  — RF-31
+    @PostMapping(value = "/{id}/attachments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
+    public ResponseEntity<AdjuntoResponse> subirAdjunto(
+            @PathVariable Long id,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile archivo,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adjuntoService.subir(id, archivo,
+                        ud.getUsuario().getEmpresa().getEmpresaId()));
+    }
+
+    // GET /api/transactions/{id}/attachments  — RF-31
+    @GetMapping("/{id}/attachments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<List<AdjuntoResponse>> listarAdjuntos(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        return ResponseEntity.ok(
+                adjuntoService.listar(id, ud.getUsuario().getEmpresa().getEmpresaId()));
+    }
+
+    // GET /api/transactions/attachments/{adjuntoId}
+    @GetMapping("/attachments/{adjuntoId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<byte[]> descargarAdjunto(
+            @PathVariable Long adjuntoId,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        byte[] archivo = adjuntoService.descargar(adjuntoId,
+                ud.getUsuario().getEmpresa().getEmpresaId());
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .body(archivo);
+    }
+
+    // DELETE /api/transactions/attachments/{adjuntoId}
+    @DeleteMapping("/attachments/{adjuntoId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
+    public ResponseEntity<Map<String, String>> eliminarAdjunto(
+            @PathVariable Long adjuntoId,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        adjuntoService.eliminar(adjuntoId, ud.getUsuario().getEmpresa().getEmpresaId());
+        return ResponseEntity.ok(Map.of("mensaje", "Archivo eliminado exitosamente"));
     }
 
     // GET /api/transactions/payable  — RF-33
