@@ -3,6 +3,7 @@ package com.GesCom.service.Impl;
 import com.GesCom.dto.request.CrearClienteRequest;
 import com.GesCom.dto.request.EditarClienteRequest;
 import com.GesCom.dto.response.ClienteResponse;
+import com.GesCom.dto.response.PageResponse;
 import com.GesCom.model.Cliente;
 import com.GesCom.model.Empresa;
 import com.GesCom.repository.ClienteRepository;
@@ -10,6 +11,7 @@ import com.GesCom.repository.EmpresaRepository;
 import com.GesCom.service.ClienteService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ClienteServiceImpl implements ClienteService {
 
     private final ClienteRepository clienteRepository;
@@ -91,6 +94,7 @@ public class ClienteServiceImpl implements ClienteService {
         }
         cliente.setActive(false);
         clienteRepository.save(cliente);
+        log.info("Cliente desactivado: id={}, nombre={}", id, cliente.getNombre());
     }
 
     @Override
@@ -102,6 +106,22 @@ public class ClienteServiceImpl implements ClienteService {
         }
         cliente.setActive(true);
         clienteRepository.save(cliente);
+        log.info("Cliente activado: id={}, nombre={}", id, cliente.getNombre());
+    }
+
+    @Override
+    public PageResponse<ClienteResponse> obtenerPaginado(Long empresaId, int pagina, int tamano) {
+        var page = clienteRepository
+                .findByEmpresa_EmpresaId(empresaId,
+                        org.springframework.data.domain.PageRequest.of(pagina, tamano));
+        return PageResponse.<ClienteResponse>builder()
+                .contenido(page.getContent().stream().map(this::toResponse).toList())
+                .paginaActual(page.getNumber())
+                .totalPaginas(page.getTotalPages())
+                .totalElementos(page.getTotalElements())
+                .tamano(page.getSize())
+                .esUltima(page.isLast())
+                .build();
     }
 
     private Cliente buscar(Long id, Long empresaId) {

@@ -2,6 +2,8 @@ package com.GesCom.dto.response;
 
 import lombok.Builder;
 
+import java.time.LocalDateTime;
+
 @Builder
 public record UsuarioResponse(
         Long usuarioId,
@@ -11,6 +13,10 @@ public record UsuarioResponse(
         String segundoApellido,
         String email,
         String rol,
-        boolean activo
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt,
+        boolean activo,
+        java.math.BigDecimal sueldo,
+        String monedaSueldo
 ) {
 }

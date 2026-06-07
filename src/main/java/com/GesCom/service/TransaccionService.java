@@ -7,6 +7,7 @@ import com.GesCom.dto.request.RegistrarPagoRequest;
 import com.GesCom.dto.response.PagoResponse;
 import com.GesCom.dto.response.TransaccionResponse;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 public interface TransaccionService {

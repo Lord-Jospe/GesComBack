@@ -3,6 +3,7 @@ package com.GesCom.controller;
 import com.GesCom.dto.request.CrearClienteRequest;
 import com.GesCom.dto.request.EditarClienteRequest;
 import com.GesCom.dto.response.ClienteResponse;
+import com.GesCom.dto.response.PageResponse;
 import com.GesCom.security.user.UsuarioDetails;
 import com.GesCom.service.ClienteService;
 import jakarta.validation.Valid;
@@ -43,6 +44,18 @@ public class ClienteController {
 
         Long empresaId = ud.getUsuario().getEmpresa().getEmpresaId();
         return ResponseEntity.ok(clienteService.obtenerTodos(empresaId));
+    }
+
+    // GET /api/customer/paged?pagina=0&tamano=10
+    @GetMapping("/paged")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<PageResponse<ClienteResponse>> obtenerPaginado(
+            @AuthenticationPrincipal UsuarioDetails ud,
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "10") int tamano) {
+
+        Long empresaId = ud.getUsuario().getEmpresa().getEmpresaId();
+        return ResponseEntity.ok(clienteService.obtenerPaginado(empresaId, pagina, tamano));
     }
 
     // GET /api/customer/{id}

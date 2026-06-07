@@ -9,11 +9,13 @@ import com.GesCom.repository.UsuarioRepository;
 import com.GesCom.service.EmpresaService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class EmpresaServiceImpl implements EmpresaService {
 
     private final EmpresaRepository empresaRepository;
@@ -64,7 +66,9 @@ public class EmpresaServiceImpl implements EmpresaService {
         if (request.facturaPrefijo()         != null) empresa.setFacturaPrefijo(request.facturaPrefijo());
         if (request.facturaSiguienteNumero() != null) empresa.setFacturaSiguienteNumero(request.facturaSiguienteNumero());
 
-        return toResponse(empresaRepository.save(empresa));
+        var saved = empresaRepository.save(empresa);
+        log.info("Perfil de empresa editado: id={}", empresaId);
+        return toResponse(saved);
     }
 
     @Override
@@ -73,6 +77,7 @@ public class EmpresaServiceImpl implements EmpresaService {
         Empresa empresa = buscarEmpresa(empresaId);
         empresa.setMonedaBase(request.moneda());
         empresaRepository.save(empresa);
+        log.info("Moneda base cambiada a {} para empresa id={}", request.moneda(), empresaId);
     }
 
     private Empresa buscarEmpresa(Long empresaId) {
