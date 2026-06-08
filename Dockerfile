@@ -1,20 +1,15 @@
-# Usa imagen oficial de Java
-FROM eclipse-temurin:17-jdk
-
-# Directorio de trabajo
+# Stage 1: Build
+FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# Copiar proyecto
-COPY . .
-
-# Dar permisos de ejecución
-RUN chmod +x mvnw
-
-# Construir proyecto
-RUN ./mvnw clean package -DskipTests
-
-# Exponer puerto
-EXPOSE 8080
-
-# Ejecutar aplicación
-CMD ["java", "-jar", "target/GesCom-0.0.1-SNAPSHOT.jar"]
+# Stage 2: Run
+FROM eclipse-temurin:21-jre
+WORKDIR /app
+COPY --from=builder /app/target/*.jar app.jar
+EXPOSE 10000
+ENV PORT=10000
+ENTRYPOINT ["java", "-jar", "app.jar"]
