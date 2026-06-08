@@ -192,36 +192,30 @@ public class TransaccionServiceImpl implements TransaccionService {
     @Override
     @Transactional(readOnly = true)
     public List<TransaccionResponse> listar(Long empresaId, FiltroTransaccionRequest filtro) {
-        // Si no hay filtros, devolver todas ordenadas por fecha descendente
-        if (filtro == null || filtro.tipo() == null && filtro.estado() == null
-                && filtro.clienteId() == null && filtro.proveedorId() == null) {
-            return transaccionRepository
-                    .findByEmpresa_EmpresaIdOrderByFechaDesc(empresaId)
-                    .stream().map(this::toResponse).toList();
-        }
-
-        if (filtro.tipo() != null && filtro.estado() != null) {
-            return transaccionRepository
-                    .findByEmpresa_EmpresaIdAndTipoAndEstadoOrderByFechaAsc(
-                            empresaId, filtro.tipo(), filtro.estado())
-                    .stream().map(this::toResponse).toList();
-        }
-
-        if (filtro.tipo() != null) {
-            return transaccionRepository
-                    .findByEmpresa_EmpresaIdAndTipoOrderByFechaDesc(empresaId, filtro.tipo())
-                    .stream().map(this::toResponse).toList();
-        }
-
-        if (filtro.estado() != null) {
-            return transaccionRepository
-                    .findByEmpresa_EmpresaIdAndEstadoOrderByFechaAsc(empresaId, filtro.estado())
-                    .stream().map(this::toResponse).toList();
-        }
-
-        return transaccionRepository
+        // Obtener todas las transacciones de la empresa
+        var stream = transaccionRepository
                 .findByEmpresa_EmpresaIdOrderByFechaDesc(empresaId)
-                .stream().map(this::toResponse).toList();
+                .stream();
+
+        // Aplicar filtros
+        if (filtro != null) {
+            if (filtro.tipo() != null)
+                stream = stream.filter(t -> t.getTipo() == filtro.tipo());
+            if (filtro.estado() != null)
+                stream = stream.filter(t -> t.getEstado() == filtro.estado());
+            if (filtro.clienteId() != null)
+                stream = stream.filter(t -> t.getCliente() != null
+                        && t.getCliente().getClienteId().equals(filtro.clienteId()));
+            if (filtro.proveedorId() != null)
+                stream = stream.filter(t -> t.getProveedor() != null
+                        && t.getProveedor().getProveedorId().equals(filtro.proveedorId()));
+            if (filtro.fechaDesde() != null)
+                stream = stream.filter(t -> !t.getFecha().isBefore(filtro.fechaDesde()));
+            if (filtro.fechaHasta() != null)
+                stream = stream.filter(t -> !t.getFecha().isAfter(filtro.fechaHasta()));
+        }
+
+        return stream.map(this::toResponse).toList();
     }
 
     @Override

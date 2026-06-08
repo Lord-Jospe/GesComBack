@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,4 +33,9 @@ public interface TransaccionRepository extends JpaRepository<Transaccion, Long>,
             Long empresaId, Long proveedorId, EstadoTransaccion estado);
 
     boolean existsByEmpresa_EmpresaIdAndNumeroFactura(Long empresaId, String numeroFactura);
+
+    List<Transaccion> findByEmpresa_EmpresaIdAndFecha(Long empresaId, LocalDate fecha);
+    List<Transaccion> findByEmpresa_EmpresaIdAndFechaBetween(Long empresaId, LocalDate desde, LocalDate hasta);
+
+    List<Transaccion> findByEmpresa_EmpresaIdAndTipoAndEstado(Long empresaId, TipoTransaccion tipo, EstadoTransaccion estado);
 }
