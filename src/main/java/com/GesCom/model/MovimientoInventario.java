@@ -37,6 +37,10 @@ public class MovimientoInventario {
     @Column(name = "transaccion_id")
     private Long transaccionId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "registrado_por")
+    private Usuario registradoPor;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

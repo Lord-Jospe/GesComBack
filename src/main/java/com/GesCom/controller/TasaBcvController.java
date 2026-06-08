@@ -45,6 +45,16 @@ public class TasaBcvController {
                 tasaBcvService.historialTasas(ud.getUsuario().getEmpresa().getEmpresaId()));
     }
 
+    // GET /api/exchange-rate/latest  — tasa más reciente
+    @GetMapping("/latest")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<TasaBcvResponse> ultimaTasa(
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        var tasas = tasaBcvService.historialTasas(ud.getUsuario().getEmpresa().getEmpresaId());
+        if (tasas.isEmpty()) return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(tasas.get(0));
+    }
+
     // GET /api/exchange-rate/{fecha}  — RF-12
     @GetMapping("/{fecha}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")

@@ -6,10 +6,12 @@ import com.GesCom.dto.request.RegistrarMovimientoRequest;
 import com.GesCom.dto.response.MovimientoInventarioResponse;
 import com.GesCom.dto.response.PageResponse;
 import com.GesCom.dto.response.ProductoResponse;
+import com.GesCom.enums.TipoMovimientoInventario;
 import com.GesCom.security.user.UsuarioDetails;
 import com.GesCom.service.InventarioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +19,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -107,7 +110,20 @@ public class InventarioController {
     public ResponseEntity<MovimientoInventarioResponse> movimiento(
             @Valid @RequestBody RegistrarMovimientoRequest req, @AuthenticationPrincipal UsuarioDetails ud) {
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(inventarioService.registrarMovimiento(req, empresaId(ud)));
+                .body(inventarioService.registrarMovimiento(req, empresaId(ud), ud.getUsuario().getUsuarioId()));
+    }
+
+    // GET /api/inventory/movements/all
+    @GetMapping("/movements/all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<PageResponse<MovimientoInventarioResponse>> todosMovimientos(
+            @AuthenticationPrincipal UsuarioDetails ud,
+            @RequestParam(defaultValue = "0") int pagina,
+            @RequestParam(defaultValue = "20") int tamano,
+            @RequestParam(required = false) TipoMovimientoInventario tipo,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return ResponseEntity.ok(inventarioService.todosMovimientos(empresaId(ud), pagina, tamano, tipo, desde, hasta));
     }
 
     // GET /api/inventory/{id}/movements

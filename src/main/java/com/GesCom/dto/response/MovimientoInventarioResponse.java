@@ -15,5 +15,6 @@ public record MovimientoInventarioResponse(
         BigDecimal costoUnitario,
         String motivo,
         Long transaccionId,
+        String registradoPor,
         LocalDateTime createdAt
 ) {}

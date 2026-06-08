@@ -13,4 +13,5 @@ public interface PlanCuentaRepository extends JpaRepository<PlanCuenta, Long> {
     Optional<PlanCuenta> findByCuentaIdAndEmpresa_EmpresaId(Long id, Long empresaId);
     List<PlanCuenta> findByEmpresa_EmpresaIdAndTipoCuenta(Long empresaId, TipoCuenta tipoCuenta);
     boolean existsByEmpresa_EmpresaIdAndCodigo(Long empresaId, String codigo);
+    Optional<PlanCuenta> findByEmpresa_EmpresaIdAndCodigo(Long empresaId, String codigo);
 }

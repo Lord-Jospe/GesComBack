@@ -6,8 +6,10 @@ import com.GesCom.dto.request.RegistrarMovimientoRequest;
 import com.GesCom.dto.response.MovimientoInventarioResponse;
 import com.GesCom.dto.response.PageResponse;
 import com.GesCom.dto.response.ProductoResponse;
+import com.GesCom.enums.TipoMovimientoInventario;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 public interface InventarioService {
@@ -22,6 +24,8 @@ public interface InventarioService {
     List<ProductoResponse> stockCritico(Long empresaId);
     BigDecimal valorTotalInventario(Long empresaId);
 
-    MovimientoInventarioResponse registrarMovimiento(RegistrarMovimientoRequest request, Long empresaId);
+    MovimientoInventarioResponse registrarMovimiento(RegistrarMovimientoRequest request, Long empresaId, Long usuarioId);
     List<MovimientoInventarioResponse> historialMovimientos(Long productoId, Long empresaId);
+    PageResponse<MovimientoInventarioResponse> todosMovimientos(Long empresaId, int pagina, int tamano,
+                                                               TipoMovimientoInventario tipo, LocalDate desde, LocalDate hasta);
 }

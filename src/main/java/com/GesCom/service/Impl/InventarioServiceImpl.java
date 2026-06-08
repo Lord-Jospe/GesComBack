@@ -10,9 +10,11 @@ import com.GesCom.enums.TipoMovimientoInventario;
 import com.GesCom.model.Empresa;
 import com.GesCom.model.MovimientoInventario;
 import com.GesCom.model.Producto;
+import com.GesCom.model.Usuario;
 import com.GesCom.repository.EmpresaRepository;
 import com.GesCom.repository.MovimientoInventarioRepository;
 import com.GesCom.repository.ProductoRepository;
+import com.GesCom.repository.UsuarioRepository;
 import com.GesCom.service.InventarioService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 @Service
@@ -32,6 +35,7 @@ public class InventarioServiceImpl implements InventarioService {
     private final ProductoRepository productoRepository;
     private final MovimientoInventarioRepository movimientoRepository;
     private final EmpresaRepository empresaRepository;
+    private final UsuarioRepository usuarioRepository;
 
     @Override @Transactional
     public ProductoResponse crearProducto(CrearProductoRequest request, Long empresaId) {
@@ -130,31 +134,64 @@ public class InventarioServiceImpl implements InventarioService {
     }
 
     @Override @Transactional
-    public MovimientoInventarioResponse registrarMovimiento(RegistrarMovimientoRequest request, Long empresaId) {
+    public MovimientoInventarioResponse registrarMovimiento(RegistrarMovimientoRequest request, Long empresaId, Long usuarioId) {
         Producto p = buscar(request.productoId(), empresaId);
+        Usuario usuario = usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
+
+        // Validar stock no negativo
+        if ((request.tipo() == TipoMovimientoInventario.SALIDA || request.tipo() == TipoMovimientoInventario.MERMA)
+                && p.getStockActual().subtract(request.cantidad()).compareTo(BigDecimal.ZERO) < 0
+                && !p.isVentaBajoPedido()) {
+            throw new IllegalStateException(
+                    "Stock insuficiente. Disponible: " + p.getStockActual() + " " + p.getUnidadMedida()
+                    + ". Activa 'Venta bajo pedido' para permitir stock negativo.");
+        }
 
         MovimientoInventario mov = MovimientoInventario.builder()
                 .producto(p).tipo(request.tipo())
                 .cantidad(request.cantidad()).costoUnitario(request.costoUnitario())
-                .motivo(request.motivo()).build();
+                .motivo(request.motivo()).registradoPor(usuario)
+                .build();
 
-        // Actualizar stock
         BigDecimal nuevoStock = p.getStockActual();
         if (request.tipo() == TipoMovimientoInventario.ENTRADA) {
             nuevoStock = nuevoStock.add(request.cantidad());
         } else {
             nuevoStock = nuevoStock.subtract(request.cantidad());
-            if (nuevoStock.compareTo(BigDecimal.ZERO) < 0 && !p.isVentaBajoPedido()) {
-                throw new IllegalStateException("Stock insuficiente. Disponible: " + p.getStockActual() + " " + p.getUnidadMedida());
-            }
         }
         p.setStockActual(nuevoStock);
         productoRepository.save(p);
         movimientoRepository.save(mov);
 
-        log.info("Movimiento de inventario: producto={}, tipo={}, cantidad={}, stock={}",
-                p.getNombre(), request.tipo(), request.cantidad(), nuevoStock);
+        log.info("Movimiento: producto={}, tipo={}, cant={}, stock={}, usuario={}",
+                p.getNombre(), request.tipo(), request.cantidad(), nuevoStock, usuario.getPrimerNombre());
         return toMovResponse(mov);
+    }
+
+    @Override @Transactional(readOnly = true)
+    public PageResponse<MovimientoInventarioResponse> todosMovimientos(Long empresaId, int pagina, int tamano,
+                                                                       TipoMovimientoInventario tipo, LocalDate desde, LocalDate hasta) {
+        var pageable = org.springframework.data.domain.PageRequest.of(pagina, tamano);
+        org.springframework.data.domain.Page<MovimientoInventario> page;
+
+        if (tipo != null && desde != null && hasta != null) {
+            page = movimientoRepository.findByProducto_Empresa_EmpresaIdAndTipoAndCreatedAtBetweenOrderByCreatedAtDesc(
+                    empresaId, tipo, desde.atStartOfDay(), hasta.atTime(23,59,59), pageable);
+        } else if (tipo != null) {
+            page = movimientoRepository.findByProducto_Empresa_EmpresaIdAndTipoOrderByCreatedAtDesc(empresaId, tipo, pageable);
+        } else if (desde != null && hasta != null) {
+            page = movimientoRepository.findByProducto_Empresa_EmpresaIdAndCreatedAtBetweenOrderByCreatedAtDesc(
+                    empresaId, desde.atStartOfDay(), hasta.atTime(23,59,59), pageable);
+        } else {
+            page = movimientoRepository.findByProducto_Empresa_EmpresaIdOrderByCreatedAtDesc(empresaId, pageable);
+        }
+
+        return PageResponse.<MovimientoInventarioResponse>builder()
+                .contenido(page.getContent().stream().map(this::toMovResponse).toList())
+                .paginaActual(page.getNumber()).totalPaginas(page.getTotalPages())
+                .totalElementos(page.getTotalElements()).tamano(page.getSize()).esUltima(page.isLast())
+                .build();
     }
 
     @Override @Transactional(readOnly = true)
@@ -191,13 +228,17 @@ public class InventarioServiceImpl implements InventarioService {
     }
 
     private MovimientoInventarioResponse toMovResponse(MovimientoInventario m) {
+        String nombreRegistrador = m.getRegistradoPor() != null
+                ? m.getRegistradoPor().getPrimerNombre() + " " + m.getRegistradoPor().getPrimerApellido()
+                : null;
         return MovimientoInventarioResponse.builder()
                 .movimientoId(m.getMovimientoId())
                 .productoId(m.getProducto().getProductoId())
                 .productoNombre(m.getProducto().getNombre())
                 .tipo(m.getTipo().name()).cantidad(m.getCantidad())
                 .costoUnitario(m.getCostoUnitario()).motivo(m.getMotivo())
-                .transaccionId(m.getTransaccionId()).createdAt(m.getCreatedAt())
+                .transaccionId(m.getTransaccionId()).registradoPor(nombreRegistrador)
+                .createdAt(m.getCreatedAt())
                 .build();
     }
 }

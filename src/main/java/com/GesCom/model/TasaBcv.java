@@ -5,7 +5,6 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -29,8 +28,8 @@ public class TasaBcv {
     @Column(nullable = false, precision = 12, scale = 4)
     private BigDecimal tasa; // 1 USD = X Bs.
 
-    @Column(nullable = false)
-    private LocalDate fecha;
+    @Column(name = "fecha_hora", nullable = false)
+    private LocalDateTime fechaHora;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "registrado_por", nullable = false)

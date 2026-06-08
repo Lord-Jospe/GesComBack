@@ -44,9 +44,12 @@ public class TransaccionServiceImpl implements TransaccionService {
         Cliente cliente = resolverCliente(request, empresaId);
         Proveedor proveedor = resolverProveedor(request, empresaId);
 
-        // ─── 1. Obtener tasa BCV del día ───────────────────────────
+        // ─── 1. Obtener tasa BCV más reciente hasta la fecha ───────
+        java.time.LocalDateTime inicioDia = request.fecha().atStartOfDay();
+        java.time.LocalDateTime finDia = request.fecha().atTime(23, 59, 59);
         BigDecimal tasaBcv = tasaBcvRepository
-                .findByEmpresa_EmpresaIdAndFecha(empresaId, request.fecha())
+                .findTopByEmpresa_EmpresaIdAndFechaHoraBetweenOrderByFechaHoraDesc(
+                        empresaId, inicioDia, finDia)
                 .map(TasaBcv::getTasa)
                 .orElseThrow(() -> new IllegalStateException(
                         "No hay tasa BCV registrada para la fecha " + request.fecha() +
