@@ -87,7 +87,7 @@ public class UsuarioController {
         return ResponseEntity.ok("Usuario desactivado exitosamente");
     }
 
-    //PATCH /{id}/active
+    //PATCH /{id}/activate
     //Metodo para activar al usuario
     @PatchMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")

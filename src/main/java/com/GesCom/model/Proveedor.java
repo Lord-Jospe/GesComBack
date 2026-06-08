@@ -33,7 +33,7 @@ public class Proveedor {
     private String rif;
 
     @Column(length = 255)
-    private String correo;
+    private String email;
 
     @Column(length = 20)
     private String telefono;

@@ -49,6 +49,12 @@ public class Usuario {
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 
+    @Column(name = "sueldo", precision = 12, scale = 2)
+    private java.math.BigDecimal sueldo;
+
+    @Column(name = "moneda_sueldo", length = 3)
+    private String monedaSueldo;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

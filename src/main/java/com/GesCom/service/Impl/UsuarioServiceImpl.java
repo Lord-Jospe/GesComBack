@@ -14,6 +14,7 @@ import com.GesCom.repository.RolRepository;
 import com.GesCom.repository.UsuarioRepository;
 import com.GesCom.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +24,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UsuarioServiceImpl implements UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
@@ -35,7 +37,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional
     public UsuarioResponse crearUsuario(CrearUsuarioRequest request, Long empresaId) {
-        if (usuarioRepository.existsByEmail(request.email())) {
+        if (usuarioRepository.existsByEmailAndIsActiveTrue(request.email())) {
             throw new IllegalArgumentException(
                     "Ya existe un usuario registrado con ese correo");
         }
@@ -58,9 +60,13 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .passwordHash(passwordEncoder.encode(request.password()))
                 .rol(rol)
                 .isActive(true)
+                .sueldo(request.sueldo())
+                .monedaSueldo(request.monedaSueldo())
                 .build();
 
-        return toResponse(usuarioRepository.save(usuario));
+        var saved = usuarioRepository.save(usuario);
+        log.info("Usuario creado: id={}, email={}, rol={}", saved.getUsuarioId(), request.email(), request.rol());
+        return toResponse(saved);
     }
 
 
@@ -68,7 +74,7 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     public List<UsuarioResponse> obtenerTodos(Long empresaId) {
         return usuarioRepository
-                .findByEmpresa_EmpresaIdAndIsActiveTrue(empresaId)
+                .findByEmpresa_EmpresaId(empresaId)
                 .stream()
                 .map(this::toResponse)
                 .toList();
@@ -93,7 +99,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         // Verificar email duplicado
         if (request.email() != null
                 && !request.email().equalsIgnoreCase(usuario.getEmail())
-                && usuarioRepository.existsByEmail(request.email())) {
+                && usuarioRepository.existsByEmailAndIsActiveTrue(request.email())) {
             throw new IllegalArgumentException("El email ya está en uso: " + request.email());
         }
 
@@ -112,10 +118,14 @@ public class UsuarioServiceImpl implements UsuarioService {
         if (request.password() != null && !request.password().isBlank()) {
             usuario.setPasswordHash(passwordEncoder.encode(request.password()));
         }
+        if (request.sueldo()    != null) usuario.setSueldo(request.sueldo());
+        if (request.monedaSueldo() != null) usuario.setMonedaSueldo(request.monedaSueldo());
 
         usuario.setUpdatedAt(LocalDateTime.now());
 
-        return toResponse(usuarioRepository.save(usuario));
+        var saved = usuarioRepository.save(usuario);
+        log.info("Usuario editado: id={}", id);
+        return toResponse(saved);
     }
 
 
@@ -131,6 +141,7 @@ public class UsuarioServiceImpl implements UsuarioService {
         usuario.setActive(false);
         usuario.setUpdatedAt(LocalDateTime.now());
         usuarioRepository.save(usuario);
+        log.info("Usuario desactivado: id={}, email={}", id, usuario.getEmail());
     }
 
     // --- Activar usuario
@@ -142,9 +153,17 @@ public class UsuarioServiceImpl implements UsuarioService {
             throw new IllegalStateException("El usuario ya se encuentra activo");
         }
 
+        // Verificar que el email no lo tenga otro usuario activo (Opción A)
+        if (usuarioRepository.existsByEmailAndIsActiveTrue(usuario.getEmail())) {
+            throw new IllegalArgumentException(
+                    "El email " + usuario.getEmail() + " ya está en uso por otro usuario activo. "
+                    + "Cambia el email del usuario antes de reactivarlo.");
+        }
+
         usuario.setActive(true);
         usuario.setUpdatedAt(LocalDateTime.now());
         usuarioRepository.save(usuario);
+        log.info("Usuario activado: id={}, email={}", id, usuario.getEmail());
     }
 
     // --- Paginación y filtros
@@ -173,7 +192,11 @@ public class UsuarioServiceImpl implements UsuarioService {
                 .segundoApellido(u.getSegundoApellido())
                 .email(u.getEmail())
                 .rol(u.getRol().getNombre())
+                .createdAt(u.getCreatedAt())
+                .updatedAt(u.getUpdatedAt())
                 .activo(u.isActive())
+                .sueldo(u.getSueldo())
+                .monedaSueldo(u.getMonedaSueldo())
                 .build();
     }
 

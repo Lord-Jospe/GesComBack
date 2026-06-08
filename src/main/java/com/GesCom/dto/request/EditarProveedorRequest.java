@@ -12,7 +12,7 @@ public record EditarProveedorRequest(
 
         @Email(message = "Formato de correo inválido")
         @Size(max = 255)
-        String correo,
+        String email,
 
         @Size(max = 20)
         String telefono,

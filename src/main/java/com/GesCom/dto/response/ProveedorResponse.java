@@ -6,7 +6,7 @@ public record ProveedorResponse(
         Long proveedorId,
         String nombre,
         String rif,
-        String correo,
+        String email,
         String telefono,
         String categoria,
         boolean isActive,

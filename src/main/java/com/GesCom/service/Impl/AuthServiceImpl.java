@@ -9,6 +9,7 @@ import com.GesCom.repository.*;
 import com.GesCom.security.jwt.JwtUtil;
 import com.GesCom.service.AuthService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +20,7 @@ import java.time.LocalDate;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
     private final UsuarioRepository        usuarioRepository;
     private final EmpresaRepository        empresaRepository;
@@ -91,16 +93,22 @@ public class AuthServiceImpl implements AuthService {
                         .build()
         );
 
-        return buildAuthResponse(jwtUtil.generateToken(admin), admin);
+        var response = buildAuthResponse(jwtUtil.generateToken(admin), admin);
+        log.info("Empresa registrada: {} (RIF: {}), admin: {}", request.nombreEmpresa(), request.rif(), request.email());
+        return response;
     }
 
     @Override
     public AuthResponse login(LoginRequest request) {
 
         Usuario usuario = usuarioRepository.findByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
+                .orElseThrow(() -> {
+                    log.warn("Intento de login fallido: email no encontrado — {}", request.email());
+                    return new IllegalArgumentException("Usuario no encontrado");
+                });
 
         if (!usuario.isActive()) {
+            log.warn("Intento de login: usuario inactivo — {}", request.email());
             throw new UsuarioInactivoException("Usuario desactivado. Contacte al administrador");
         }
 
@@ -111,7 +119,9 @@ public class AuthServiceImpl implements AuthService {
                 )
         );
 
-        return buildAuthResponse(jwtUtil.generateToken(usuario), usuario);
+        var response = buildAuthResponse(jwtUtil.generateToken(usuario), usuario);
+        log.info("Login exitoso: {} (rol: {})", request.email(), usuario.getRol().getNombre());
+        return response;
     }
 
     private AuthResponse buildAuthResponse(String token, Usuario usuario) {

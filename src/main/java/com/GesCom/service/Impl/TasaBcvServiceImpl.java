@@ -11,14 +11,15 @@ import com.GesCom.repository.UsuarioRepository;
 import com.GesCom.service.TasaBcvService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TasaBcvServiceImpl implements TasaBcvService {
 
     private final TasaBcvRepository tasaBcvRepository;
@@ -34,16 +35,16 @@ public class TasaBcvServiceImpl implements TasaBcvService {
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new EntityNotFoundException("Usuario no encontrado"));
 
-        // Si ya existe una tasa para esa fecha, reemplazarla
-        tasaBcvRepository.findByEmpresa_EmpresaIdAndFecha(empresaId, request.fecha())
-                .ifPresent(t -> tasaBcvRepository.delete(t));
-
+        // Siempre crear nueva — permite múltiples tasas por día con distinta hora
         TasaBcv tasa = tasaBcvRepository.save(TasaBcv.builder()
                 .empresa(empresa)
                 .tasa(request.tasa())
-                .fecha(request.fecha())
+                .fechaHora(request.fechaHora())
                 .registradoPor(usuario)
                 .build());
+
+        log.info("Tasa BCV registrada: Bs. {} por USD — {} (usuario: {})",
+                request.tasa(), request.fechaHora(), usuario.getPrimerNombre());
 
         return toResponse(tasa);
     }
@@ -51,16 +52,18 @@ public class TasaBcvServiceImpl implements TasaBcvService {
     @Override
     @Transactional(readOnly = true)
     public List<TasaBcvResponse> historialTasas(Long empresaId) {
-        return tasaBcvRepository.findByEmpresa_EmpresaIdOrderByFechaDesc(empresaId)
-                .stream()
-                .map(this::toResponse)
-                .toList();
+        return tasaBcvRepository.findByEmpresa_EmpresaIdOrderByFechaHoraDesc(empresaId)
+                .stream().map(this::toResponse).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public TasaBcvResponse obtenerTasaDelDia(Long empresaId, LocalDate fecha) {
-        return tasaBcvRepository.findByEmpresa_EmpresaIdAndFecha(empresaId, fecha)
+    public TasaBcvResponse obtenerTasaDelDia(Long empresaId, java.time.LocalDate fecha) {
+        // Obtener la tasa más reciente para esa fecha (ignora hora)
+        java.time.LocalDateTime inicio = fecha.atStartOfDay();
+        java.time.LocalDateTime fin = fecha.atTime(23, 59, 59);
+        return tasaBcvRepository.findTopByEmpresa_EmpresaIdAndFechaHoraBetweenOrderByFechaHoraDesc(
+                        empresaId, inicio, fin)
                 .map(this::toResponse)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "No hay tasa BCV registrada para la fecha " + fecha));
@@ -72,7 +75,7 @@ public class TasaBcvServiceImpl implements TasaBcvService {
         return new TasaBcvResponse(
                 t.getTasaId(),
                 t.getTasa(),
-                t.getFecha(),
+                t.getFechaHora(),
                 nombreUsuario
         );
     }

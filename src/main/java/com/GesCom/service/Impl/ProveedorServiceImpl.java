@@ -2,6 +2,7 @@ package com.GesCom.service.Impl;
 
 import com.GesCom.dto.request.CrearProveedorRequest;
 import com.GesCom.dto.request.EditarProveedorRequest;
+import com.GesCom.dto.response.PageResponse;
 import com.GesCom.dto.response.ProveedorResponse;
 import com.GesCom.model.Empresa;
 import com.GesCom.model.Proveedor;
@@ -10,6 +11,7 @@ import com.GesCom.repository.ProveedorRepository;
 import com.GesCom.service.ProveedorService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,6 +19,7 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProveedorServiceImpl implements ProveedorService {
 
     private final ProveedorRepository proveedorRepository;
@@ -37,7 +40,7 @@ public class ProveedorServiceImpl implements ProveedorService {
                         .empresa(empresa)
                         .nombre(request.nombre())
                         .rif(request.rif())
-                        .correo(request.correo())
+                        .email(request.email())
                         .telefono(request.telefono())
                         .categoria(request.categoria())
                         .isActive(true)
@@ -59,7 +62,7 @@ public class ProveedorServiceImpl implements ProveedorService {
 
         if (request.nombre()    != null) proveedor.setNombre(request.nombre());
         if (request.rif()       != null) proveedor.setRif(request.rif());
-        if (request.correo()    != null) proveedor.setCorreo(request.correo());
+        if (request.email()    != null) proveedor.setEmail(request.email());
         if (request.telefono()  != null) proveedor.setTelefono(request.telefono());
         if (request.categoria() != null) proveedor.setCategoria(request.categoria());
 
@@ -88,6 +91,7 @@ public class ProveedorServiceImpl implements ProveedorService {
         }
         proveedor.setActive(false);
         proveedorRepository.save(proveedor);
+        log.info("Proveedor desactivado: id={}, nombre={}", id, proveedor.getNombre());
     }
 
     @Override
@@ -99,8 +103,24 @@ public class ProveedorServiceImpl implements ProveedorService {
         }
         proveedor.setActive(true);
         proveedorRepository.save(proveedor);
+        log.info("Proveedor activado: id={}, nombre={}", id, proveedor.getNombre());
     }
 
+
+    @Override
+    public PageResponse<ProveedorResponse> obtenerPaginado(Long empresaId, int pagina, int tamano) {
+        var page = proveedorRepository
+                .findByEmpresa_EmpresaId(empresaId,
+                        org.springframework.data.domain.PageRequest.of(pagina, tamano));
+        return PageResponse.<ProveedorResponse>builder()
+                .contenido(page.getContent().stream().map(this::toResponse).toList())
+                .paginaActual(page.getNumber())
+                .totalPaginas(page.getTotalPages())
+                .totalElementos(page.getTotalElements())
+                .tamano(page.getSize())
+                .esUltima(page.isLast())
+                .build();
+    }
 
     private Proveedor buscar(Long id, Long empresaId) {
         return proveedorRepository
@@ -113,7 +133,7 @@ public class ProveedorServiceImpl implements ProveedorService {
                 p.getProveedorId(),
                 p.getNombre(),
                 p.getRif(),
-                p.getCorreo(),
+                p.getEmail(),
                 p.getTelefono(),
                 p.getCategoria().name(),
                 p.isActive(),

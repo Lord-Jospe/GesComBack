@@ -26,5 +26,8 @@ public record CrearUsuarioRequest(
         String password,
 
         @NotNull(message = "El rol es obligatorio")
-        NombreRol rol  // "ADMIN", "CONTADOR", "OPERADOR"
+        NombreRol rol,  // "ADMIN", "CONTADOR", "OPERADOR"
+
+        java.math.BigDecimal sueldo,
+        String monedaSueldo
 ) {}
