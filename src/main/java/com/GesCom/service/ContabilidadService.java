@@ -15,6 +15,7 @@ public interface ContabilidadService {
 
     // Asientos (RF-47, RF-48)
     AsientoResponse crearAsientoManual(CrearAsientoRequest request, Long empresaId);
+    void crearAsientoAutomatico(com.GesCom.model.Transaccion transaccion);
     AsientoResponse obtenerAsiento(Long id, Long empresaId);
 
     // Libro Diario (RF-49)

@@ -58,6 +58,13 @@ public class AdjuntoServiceImpl implements AdjuntoService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<AdjuntoResponse> listarTodos(Long empresaId) {
+        return adjuntoRepository.findByTransaccion_Empresa_EmpresaIdOrderByCreatedAtDesc(empresaId)
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public byte[] descargar(Long adjuntoId, Long empresaId) {
         // Verificar que el adjunto pertenece a una transacción de la empresa
         Adjunto adjunto = adjuntoRepository.findById(adjuntoId)

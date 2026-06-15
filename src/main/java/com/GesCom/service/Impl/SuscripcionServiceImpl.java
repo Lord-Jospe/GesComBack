@@ -5,6 +5,7 @@ import com.GesCom.model.Suscripcion;
 import com.GesCom.repository.SuscripcionRepository;
 import com.GesCom.service.SuscripcionService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -50,6 +51,7 @@ public class SuscripcionServiceImpl implements SuscripcionService {
     }
 
     @Override
+    @Scheduled(cron = "0 3 2 * * *") // 2:03 AM todos los días
     public void marcarSuscripcionesVencidas() {
         List<Suscripcion> vencidas = suscripcionRepository
                 .findByEstadoAndFechaVenceBefore("ACTIVA", LocalDate.now());

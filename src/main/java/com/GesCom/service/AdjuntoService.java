@@ -11,6 +11,8 @@ public interface AdjuntoService {
 
     List<AdjuntoResponse> listar(Long transaccionId, Long empresaId);
 
+    List<AdjuntoResponse> listarTodos(Long empresaId);
+
     byte[] descargar(Long adjuntoId, Long empresaId);
 
     void eliminar(Long adjuntoId, Long empresaId);

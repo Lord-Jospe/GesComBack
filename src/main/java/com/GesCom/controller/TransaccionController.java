@@ -184,6 +184,15 @@ public class TransaccionController {
         return ResponseEntity.ok(Map.of("mensaje", "Archivo eliminado exitosamente"));
     }
 
+    // GET /api/documents  — RF-68 (Bóveda: listar todos los documentos de la empresa)
+    @GetMapping("/documents")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<List<AdjuntoResponse>> listarTodosAdjuntos(
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        return ResponseEntity.ok(
+                adjuntoService.listarTodos(ud.getUsuario().getEmpresa().getEmpresaId()));
+    }
+
     // POST /api/transactions/{id}/credit-note  — RF-35
     @PostMapping("/{id}/credit-note")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")

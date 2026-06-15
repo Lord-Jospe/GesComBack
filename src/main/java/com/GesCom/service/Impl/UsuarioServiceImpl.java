@@ -15,6 +15,7 @@ import com.GesCom.repository.UsuarioRepository;
 import com.GesCom.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -170,7 +171,21 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional(readOnly = true)
     public UsuarioPageResponse obtenerPaginado(Long empresaId, UsuarioFiltroRequest filtro) {
-        return null;
+        var pageable = PageRequest.of(filtro.pagina(), filtro.tamano());
+        var page = usuarioRepository.findPaginado(
+                empresaId,
+                filtro.soloActivos(),
+                filtro.rolId(),
+                filtro.busqueda() != null && !filtro.busqueda().isBlank() ? filtro.busqueda() : null,
+                pageable);
+
+        return new UsuarioPageResponse(
+                page.getContent().stream().map(this::toResponse).toList(),
+                page.getNumber(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.getSize(),
+                page.isLast());
     }
 
     // Verifica que el usuario pertenezca a la empresa

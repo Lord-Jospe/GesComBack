@@ -7,6 +7,7 @@ import com.GesCom.enums.TipoMovimientoInventario;
 import com.GesCom.enums.TipoTransaccion;
 import com.GesCom.model.*;
 import com.GesCom.repository.*;
+import com.GesCom.service.ContabilidadService;
 import com.GesCom.service.TransaccionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class TransaccionServiceImpl implements TransaccionService {
     private final PagoRepository pagoRepository;
     private final ProductoRepository productoRepository;
     private final MovimientoInventarioRepository movimientoInventarioRepository;
+    private final ContabilidadService contabilidadService;
 
     private static final BigDecimal IGTF_RATE = new BigDecimal("3.00");
 
@@ -181,6 +183,9 @@ public class TransaccionServiceImpl implements TransaccionService {
 
         // ─── 10. Actualizar inventario (si aplica) ──────────────────
         procesarInventario(transaccion, request.tipo());
+
+        // ─── 11. Generar asiento contable automático (RF-47) ─────────
+        contabilidadService.crearAsientoAutomatico(transaccion);
 
         log.info("Transacción creada: id={}, tipo={}, total={} {}, factura={}",
                 transaccion.getTransaccionId(), request.tipo(), total,
@@ -452,60 +457,62 @@ public class TransaccionServiceImpl implements TransaccionService {
         for (TransaccionLinea linea : transaccion.getLineas()) {
             if (linea.getProductoId() == null) continue;
 
-            productoRepository.findById(linea.getProductoId()).ifPresentOrElse(producto -> {
-                TipoMovimientoInventario tipoMov = (tipoTransaccion == TipoTransaccion.INGRESO)
-                        ? TipoMovimientoInventario.SALIDA   // venta → disminuye stock
-                        : TipoMovimientoInventario.ENTRADA; // compra → aumenta stock
+            // Producto DEBE existir si se especificó productoId. Sin excepciones.
+            Producto producto = productoRepository.findById(linea.getProductoId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Producto con ID " + linea.getProductoId() + " no encontrado. "
+                            + "La línea «" + linea.getDescripcion() + "» referencia un producto que ya no existe."));
 
-                // Validar stock suficiente para salidas
-                if (tipoMov == TipoMovimientoInventario.SALIDA
-                        && producto.getStockActual().subtract(linea.getCantidad()).compareTo(BigDecimal.ZERO) < 0
-                        && !producto.isVentaBajoPedido()) {
-                    throw new IllegalStateException(
-                            "Stock insuficiente para «" + producto.getNombre() + "». Disponible: "
-                            + producto.getStockActual() + " " + producto.getUnidadMedida()
-                            + ". Active 'Venta bajo pedido' para permitir stock negativo.");
-                }
+            TipoMovimientoInventario tipoMov = (tipoTransaccion == TipoTransaccion.INGRESO)
+                    ? TipoMovimientoInventario.SALIDA   // venta → disminuye stock
+                    : TipoMovimientoInventario.ENTRADA; // compra → aumenta stock
 
-                // Actualizar stock del producto
-                BigDecimal nuevoStock = (tipoMov == TipoMovimientoInventario.ENTRADA)
-                        ? producto.getStockActual().add(linea.getCantidad())
-                        : producto.getStockActual().subtract(linea.getCantidad());
-                producto.setStockActual(nuevoStock);
+            // Validar stock suficiente para salidas
+            if (tipoMov == TipoMovimientoInventario.SALIDA
+                    && producto.getStockActual().subtract(linea.getCantidad()).compareTo(BigDecimal.ZERO) < 0
+                    && !producto.isVentaBajoPedido()) {
+                throw new IllegalStateException(
+                        "Stock insuficiente para «" + producto.getNombre() + "». Disponible: "
+                        + producto.getStockActual() + " " + producto.getUnidadMedida()
+                        + ". Active 'Venta bajo pedido' para permitir stock negativo.");
+            }
 
-                // Si es una compra y el producto no tenía costo, se actualiza
-                if (tipoTransaccion == TipoTransaccion.EGRESO
-                        && (producto.getCostoUnitario() == null
-                            || producto.getCostoUnitario().compareTo(BigDecimal.ZERO) == 0)) {
-                    producto.setCostoUnitario(linea.getPrecioUnitario());
-                }
+            // Actualizar stock del producto
+            BigDecimal nuevoStock = (tipoMov == TipoMovimientoInventario.ENTRADA)
+                    ? producto.getStockActual().add(linea.getCantidad())
+                    : producto.getStockActual().subtract(linea.getCantidad());
+            producto.setStockActual(nuevoStock);
 
-                productoRepository.save(producto);
+            // Si es una compra y el producto no tenía costo, se actualiza
+            if (tipoTransaccion == TipoTransaccion.EGRESO
+                    && (producto.getCostoUnitario() == null
+                        || producto.getCostoUnitario().compareTo(BigDecimal.ZERO) == 0)) {
+                producto.setCostoUnitario(linea.getPrecioUnitario());
+            }
 
-                // Determinar costo unitario del movimiento
-                BigDecimal costoMov = (tipoTransaccion == TipoTransaccion.EGRESO)
-                        ? linea.getPrecioUnitario()       // costo de adquisición
-                        : producto.getCostoUnitario();    // costo registrado del producto
+            productoRepository.save(producto);
 
-                // Registrar movimiento de inventario
-                MovimientoInventario mov = MovimientoInventario.builder()
-                        .producto(producto)
-                        .tipo(tipoMov)
-                        .cantidad(linea.getCantidad())
-                        .costoUnitario(costoMov)
-                        .motivo(tipoTransaccion == TipoTransaccion.INGRESO
-                                ? "Venta — Factura " + (transaccion.getNumeroFactura() != null
-                                    ? transaccion.getNumeroFactura() : "#" + transaccion.getTransaccionId())
-                                : "Compra — Transacción #" + transaccion.getTransaccionId())
-                        .transaccionId(transaccion.getTransaccionId())
-                        .build();
-                movimientoInventarioRepository.save(mov);
+            // Determinar costo unitario del movimiento
+            BigDecimal costoMov = (tipoTransaccion == TipoTransaccion.EGRESO)
+                    ? linea.getPrecioUnitario()       // costo de adquisición
+                    : producto.getCostoUnitario();    // costo registrado del producto
 
-                log.info("Inventario actualizado: producto={}, tipo={}, cant={}, nuevoStock={}",
-                        producto.getNombre(), tipoMov, linea.getCantidad(), nuevoStock);
+            // Registrar movimiento de inventario
+            MovimientoInventario mov = MovimientoInventario.builder()
+                    .producto(producto)
+                    .tipo(tipoMov)
+                    .cantidad(linea.getCantidad())
+                    .costoUnitario(costoMov)
+                    .motivo(tipoTransaccion == TipoTransaccion.INGRESO
+                            ? "Venta — Factura " + (transaccion.getNumeroFactura() != null
+                                ? transaccion.getNumeroFactura() : "#" + transaccion.getTransaccionId())
+                            : "Compra — Transacción #" + transaccion.getTransaccionId())
+                    .transaccionId(transaccion.getTransaccionId())
+                    .build();
+            movimientoInventarioRepository.save(mov);
 
-            }, () -> log.warn("Línea con productoId={} pero el producto no existe en BD. Se omite inventario.",
-                    linea.getProductoId()));
+            log.info("Inventario actualizado: producto={}, tipo={}, cant={}, nuevoStock={}",
+                    producto.getNombre(), tipoMov, linea.getCantidad(), nuevoStock);
         }
     }
 
