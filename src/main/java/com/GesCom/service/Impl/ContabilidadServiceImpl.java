@@ -100,6 +100,130 @@ public class ContabilidadServiceImpl implements ContabilidadService {
         return toAsientoResponse(asiento);
     }
 
+    @Override @Transactional
+    public void crearAsientoAutomatico(Transaccion transaccion) {
+        Long empresaId = transaccion.getEmpresa().getEmpresaId();
+        Empresa empresa = transaccion.getEmpresa();
+
+        int numero = asientoRepository.maxNumeroAsiento(empresaId) + 1;
+
+        // Buscar cuentas por código estándar VEN-NIF
+        PlanCuenta cuentaEfectivo = buscarPorCodigo("1.1.1", empresaId);
+        PlanCuenta cuentaCobrar = buscarPorCodigo("1.1.2", empresaId);
+        PlanCuenta cuentaPagar = buscarPorCodigo("2.1.1", empresaId);
+        PlanCuenta cuentaImpuestos = buscarPorCodigo("2.1.2", empresaId);
+        PlanCuenta cuentaVentas = buscarPorCodigo("4.1", empresaId);
+        PlanCuenta cuentaInventario = buscarPorCodigo("1.1.3", empresaId);
+        PlanCuenta cuentaCostoVentas = buscarPorCodigo("5.1", empresaId);
+        PlanCuenta cuentaGastosAdmin = buscarPorCodigo("5.3", empresaId);
+
+        // Si faltan cuentas esenciales, no se genera el asiento
+        if (cuentaEfectivo == null || cuentaCobrar == null || cuentaPagar == null
+                || cuentaImpuestos == null || cuentaVentas == null) {
+            log.warn("No se generó asiento automático: faltan cuentas estándar en el plan contable de empresa {}", empresaId);
+            return;
+        }
+
+        AsientoContable asiento = AsientoContable.builder()
+                .empresa(empresa).numeroAsiento(numero)
+                .fecha(transaccion.getFecha())
+                .transaccionId(transaccion.getTransaccionId())
+                .esAutomatico(true).build();
+
+        List<LineaAsiento> lineas = new ArrayList<>();
+        boolean esIngreso = transaccion.getTipo() == com.GesCom.enums.TipoTransaccion.INGRESO;
+        boolean esPendiente = transaccion.getEstado() == com.GesCom.enums.EstadoTransaccion.PENDIENTE
+                || transaccion.getEstado() == com.GesCom.enums.EstadoTransaccion.PARCIAL;
+
+        if (esIngreso) {
+            // ─── VENTA ────────────────────────────────────────────────
+            asiento.setDescripcion("Venta — Factura " + (transaccion.getNumeroFactura() != null
+                    ? transaccion.getNumeroFactura() : "#" + transaccion.getTransaccionId()));
+
+            // Débito: Caja o Cuentas por Cobrar = TOTAL
+            PlanCuenta cuentaDebito = esPendiente ? cuentaCobrar : cuentaEfectivo;
+            lineas.add(LineaAsiento.builder().asiento(asiento).cuenta(cuentaDebito)
+                    .esDebito(true).monto(transaccion.getTotal()).build());
+
+            // Crédito: Ventas = subtotal (base imponible, sin IVA ni IGTF)
+            BigDecimal baseVenta = transaccion.getSubtotal();
+            if (transaccion.getDescuentoGlobalMonto() != null) {
+                baseVenta = baseVenta.subtract(transaccion.getDescuentoGlobalMonto());
+            }
+            lineas.add(LineaAsiento.builder().asiento(asiento).cuenta(cuentaVentas)
+                    .esDebito(false).monto(baseVenta).build());
+
+            // Crédito: Impuestos por Pagar = IVA (si aplica)
+            if (transaccion.getIvaMonto() != null && transaccion.getIvaMonto().compareTo(BigDecimal.ZERO) > 0) {
+                lineas.add(LineaAsiento.builder().asiento(asiento).cuenta(cuentaImpuestos)
+                        .esDebito(false).monto(transaccion.getIvaMonto()).build());
+            }
+
+            // Si hay IGTF, se registra contra Impuestos por Pagar también
+            if (transaccion.isIgtfAplica() && transaccion.getIgtfMonto() != null
+                    && transaccion.getIgtfMonto().compareTo(BigDecimal.ZERO) > 0) {
+                lineas.add(LineaAsiento.builder().asiento(asiento).cuenta(cuentaImpuestos)
+                        .esDebito(false).monto(transaccion.getIgtfMonto()).build());
+            }
+
+        } else {
+            // ─── COMPRA / GASTO ───────────────────────────────────────
+            asiento.setDescripcion("Compra — Transacción #" + transaccion.getTransaccionId());
+
+            boolean tieneProductos = transaccion.getLineas().stream()
+                    .anyMatch(l -> l.getProductoId() != null);
+
+            // Débito: Inventario o Gastos = subtotal (base imponible)
+            PlanCuenta cuentaGasto = tieneProductos ? cuentaInventario : cuentaGastosAdmin;
+            BigDecimal baseCompra = transaccion.getSubtotal();
+            if (transaccion.getDescuentoGlobalMonto() != null) {
+                baseCompra = baseCompra.subtract(transaccion.getDescuentoGlobalMonto());
+            }
+            lineas.add(LineaAsiento.builder().asiento(asiento).cuenta(cuentaGasto)
+                    .esDebito(true).monto(baseCompra).build());
+
+            // Débito: Impuestos por Pagar = IVA (crédito fiscal — reduce el pasivo)
+            if (transaccion.getIvaMonto() != null && transaccion.getIvaMonto().compareTo(BigDecimal.ZERO) > 0) {
+                lineas.add(LineaAsiento.builder().asiento(asiento).cuenta(cuentaImpuestos)
+                        .esDebito(true).monto(transaccion.getIvaMonto()).build());
+            }
+
+            // Si hay IGTF en compra, es un gasto adicional
+            if (transaccion.isIgtfAplica() && transaccion.getIgtfMonto() != null
+                    && transaccion.getIgtfMonto().compareTo(BigDecimal.ZERO) > 0) {
+                lineas.add(LineaAsiento.builder().asiento(asiento).cuenta(cuentaGastosAdmin)
+                        .esDebito(true).monto(transaccion.getIgtfMonto()).build());
+            }
+
+            // Crédito: Caja o Cuentas por Pagar = TOTAL
+            PlanCuenta cuentaCredito = esPendiente ? cuentaPagar : cuentaEfectivo;
+            lineas.add(LineaAsiento.builder().asiento(asiento).cuenta(cuentaCredito)
+                    .esDebito(false).monto(transaccion.getTotal()).build());
+        }
+
+        // Validar que el asiento esté cuadrado
+        BigDecimal totalDebito = BigDecimal.ZERO;
+        BigDecimal totalCredito = BigDecimal.ZERO;
+        for (LineaAsiento l : lineas) {
+            if (l.isEsDebito()) totalDebito = totalDebito.add(l.getMonto());
+            else totalCredito = totalCredito.add(l.getMonto());
+        }
+
+        if (totalDebito.compareTo(totalCredito) != 0) {
+            log.error("Asiento automático descuadrado (D={} C={}) para transacción #{}. No se generó.",
+                    totalDebito, totalCredito, transaccion.getTransaccionId());
+            return;
+        }
+
+        asiento.setLineas(lineas);
+        asientoRepository.save(asiento);
+        log.info("Asiento automático #{} generado para transacción #{}", numero, transaccion.getTransaccionId());
+    }
+
+    private PlanCuenta buscarPorCodigo(String codigo, Long empresaId) {
+        return planCuentaRepository.findByEmpresa_EmpresaIdAndCodigo(empresaId, codigo).orElse(null);
+    }
+
     @Override @Transactional(readOnly = true)
     public AsientoResponse obtenerAsiento(Long id, Long empresaId) {
         return toAsientoResponse(asientoRepository.findByAsientoIdAndEmpresa_EmpresaId(id, empresaId)

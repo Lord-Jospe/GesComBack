@@ -72,9 +72,13 @@ public class FileStorageServiceImpl implements FileStorageService {
         String tipo = archivo.getContentType();
         if (tipo == null || (!tipo.equals("image/jpeg")
                 && !tipo.equals("image/png")
-                && !tipo.equals("application/pdf"))) {
+                && !tipo.equals("application/pdf")
+                && !tipo.equals("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                && !tipo.equals("application/msword")
+                && !tipo.equals("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                && !tipo.equals("application/vnd.ms-excel"))) {
             throw new IllegalArgumentException(
-                    "Formato no permitido. Solo JPG, PNG y PDF.");
+                    "Formato no permitido. Solo JPG, PNG, PDF, Word y Excel.");
         }
         if (archivo.getSize() > 10 * 1024 * 1024) { // 10 MB
             throw new IllegalArgumentException(

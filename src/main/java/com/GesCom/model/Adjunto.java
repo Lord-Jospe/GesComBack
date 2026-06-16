@@ -21,7 +21,11 @@ public class Adjunto {
     private Long adjuntoId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "transaccion_id", nullable = false)
+    @JoinColumn(name = "empresa_id")
+    private Empresa empresa;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "transaccion_id")
     private Transaccion transaccion;
 
     @Column(name = "nombre_original", nullable = false, length = 255)
