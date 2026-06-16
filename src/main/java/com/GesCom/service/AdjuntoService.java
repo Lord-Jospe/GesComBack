@@ -9,6 +9,8 @@ public interface AdjuntoService {
 
     AdjuntoResponse subir(Long transaccionId, MultipartFile archivo, Long empresaId);
 
+    AdjuntoResponse subirSuelto(MultipartFile archivo, Long empresaId);
+
     List<AdjuntoResponse> listar(Long transaccionId, Long empresaId);
 
     List<AdjuntoResponse> listarTodos(Long empresaId);

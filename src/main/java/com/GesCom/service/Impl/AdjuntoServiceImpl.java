@@ -2,8 +2,10 @@ package com.GesCom.service.Impl;
 
 import com.GesCom.dto.response.AdjuntoResponse;
 import com.GesCom.model.Adjunto;
+import com.GesCom.model.Empresa;
 import com.GesCom.model.Transaccion;
 import com.GesCom.repository.AdjuntoRepository;
+import com.GesCom.repository.EmpresaRepository;
 import com.GesCom.repository.TransaccionRepository;
 import com.GesCom.service.AdjuntoService;
 import com.GesCom.service.FileStorageService;
@@ -23,6 +25,7 @@ public class AdjuntoServiceImpl implements AdjuntoService {
 
     private final AdjuntoRepository adjuntoRepository;
     private final TransaccionRepository transaccionRepository;
+    private final EmpresaRepository empresaRepository;
     private final FileStorageService fileStorageService;
 
     @Override
@@ -35,6 +38,7 @@ public class AdjuntoServiceImpl implements AdjuntoService {
         String nombreAlmacenado = fileStorageService.guardar(archivo, empresaId);
 
         Adjunto adjunto = adjuntoRepository.save(Adjunto.builder()
+                .empresa(t.getEmpresa())
                 .transaccion(t)
                 .nombreOriginal(archivo.getOriginalFilename())
                 .nombreAlmacenado(nombreAlmacenado)
@@ -57,20 +61,38 @@ public class AdjuntoServiceImpl implements AdjuntoService {
     }
 
     @Override
+    @Transactional
+    public AdjuntoResponse subirSuelto(MultipartFile archivo, Long empresaId) {
+        Empresa empresa = empresaRepository.findById(empresaId)
+                .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
+        String nombreAlmacenado = fileStorageService.guardar(archivo, empresaId);
+
+        Adjunto adjunto = adjuntoRepository.save(Adjunto.builder()
+                .empresa(empresa)
+                .nombreOriginal(archivo.getOriginalFilename())
+                .nombreAlmacenado(nombreAlmacenado)
+                .tipoArchivo(archivo.getContentType())
+                .tamanio(archivo.getSize())
+                .build());
+
+        log.info("Adjunto suelto subido: archivo={}", archivo.getOriginalFilename());
+        return toResponse(adjunto);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<AdjuntoResponse> listarTodos(Long empresaId) {
-        return adjuntoRepository.findByTransaccion_Empresa_EmpresaIdOrderByCreatedAtDesc(empresaId)
+        return adjuntoRepository.findByEmpresa_EmpresaIdOrderByCreatedAtDesc(empresaId)
                 .stream().map(this::toResponse).toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public byte[] descargar(Long adjuntoId, Long empresaId) {
-        // Verificar que el adjunto pertenece a una transacción de la empresa
         Adjunto adjunto = adjuntoRepository.findById(adjuntoId)
                 .orElseThrow(() -> new EntityNotFoundException("Adjunto no encontrado"));
 
-        if (!adjunto.getTransaccion().getEmpresa().getEmpresaId().equals(empresaId)) {
+        if (adjunto.getEmpresa() == null || !adjunto.getEmpresa().getEmpresaId().equals(empresaId)) {
             throw new IllegalArgumentException("Acceso denegado al archivo");
         }
 
@@ -83,7 +105,7 @@ public class AdjuntoServiceImpl implements AdjuntoService {
         Adjunto adjunto = adjuntoRepository.findById(adjuntoId)
                 .orElseThrow(() -> new EntityNotFoundException("Adjunto no encontrado"));
 
-        if (!adjunto.getTransaccion().getEmpresa().getEmpresaId().equals(empresaId)) {
+        if (adjunto.getEmpresa() == null || !adjunto.getEmpresa().getEmpresaId().equals(empresaId)) {
             throw new IllegalArgumentException("Acceso denegado");
         }
 
@@ -98,6 +120,8 @@ public class AdjuntoServiceImpl implements AdjuntoService {
                 a.getNombreOriginal(),
                 a.getTipoArchivo(),
                 a.getTamanio(),
+                a.getTransaccion() != null ? a.getTransaccion().getTransaccionId() : null,
+                a.getTransaccion() != null ? a.getTransaccion().getNumeroFactura() : null,
                 a.getCreatedAt()
         );
     }

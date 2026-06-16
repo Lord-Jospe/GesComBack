@@ -8,11 +8,14 @@ import com.GesCom.dto.response.PagoResponse;
 import com.GesCom.dto.response.TransaccionResponse;
 import com.GesCom.security.user.UsuarioDetails;
 import com.GesCom.dto.response.AdjuntoResponse;
+import com.GesCom.model.Adjunto;
+import com.GesCom.repository.AdjuntoRepository;
 import com.GesCom.service.AdjuntoService;
 import com.GesCom.service.FacturaPdfService;
 import com.GesCom.service.TransaccionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -161,6 +164,8 @@ public class TransaccionController {
                 adjuntoService.listar(id, ud.getUsuario().getEmpresa().getEmpresaId()));
     }
 
+    private final AdjuntoRepository adjuntoRepository;
+
     // GET /api/transactions/attachments/{adjuntoId}
     @GetMapping("/attachments/{adjuntoId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
@@ -169,8 +174,16 @@ public class TransaccionController {
             @AuthenticationPrincipal UsuarioDetails ud) {
         byte[] archivo = adjuntoService.descargar(adjuntoId,
                 ud.getUsuario().getEmpresa().getEmpresaId());
+
+        Adjunto adjunto = adjuntoRepository.findById(adjuntoId).orElse(null);
+        MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
+        if (adjunto != null && adjunto.getTipoArchivo() != null) {
+            try { mediaType = MediaType.parseMediaType(adjunto.getTipoArchivo()); } catch (Exception ignored) {}
+        }
+
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .contentType(mediaType)
+                .header("Content-Disposition", "inline")
                 .body(archivo);
     }
 
@@ -191,6 +204,17 @@ public class TransaccionController {
             @AuthenticationPrincipal UsuarioDetails ud) {
         return ResponseEntity.ok(
                 adjuntoService.listarTodos(ud.getUsuario().getEmpresa().getEmpresaId()));
+    }
+
+    // POST /api/documents/upload  — Subir documento sin transacción
+    @PostMapping(value = "/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<AdjuntoResponse> subirDocumentoSuelto(
+            @RequestParam("file") MultipartFile archivo,
+            @AuthenticationPrincipal UsuarioDetails ud) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(adjuntoService.subirSuelto(archivo,
+                        ud.getUsuario().getEmpresa().getEmpresaId()));
     }
 
     // POST /api/transactions/{id}/credit-note  — RF-35

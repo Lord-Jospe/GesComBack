@@ -13,9 +13,9 @@ public interface AdjuntoRepository extends JpaRepository<Adjunto, Long> {
 
     List<Adjunto> findByTransaccion_TransaccionId(Long transaccionId);
 
-    List<Adjunto> findByTransaccion_Empresa_EmpresaIdOrderByCreatedAtDesc(Long empresaId);
+    List<Adjunto> findByEmpresa_EmpresaIdOrderByCreatedAtDesc(Long empresaId);
 
-    Page<Adjunto> findByTransaccion_Empresa_EmpresaIdOrderByCreatedAtDesc(Long empresaId, Pageable pageable);
+    Page<Adjunto> findByEmpresa_EmpresaIdOrderByCreatedAtDesc(Long empresaId, Pageable pageable);
 
     void deleteByTransaccion_TransaccionId(Long transaccionId);
 }
