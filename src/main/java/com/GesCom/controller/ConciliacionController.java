@@ -79,6 +79,26 @@ public class ConciliacionController {
         return ResponseEntity.ok(Map.of("mensaje", "Desvinculado exitosamente"));
     }
 
+    // POST /api/reconciliation/reconcile/{movBancoId} — conciliar sin transacción
+    @PostMapping("/reconcile/{movBancoId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
+    public ResponseEntity<Map<String, String>> conciliarSinTransaccion(
+            @AuthenticationPrincipal UsuarioDetails ud,
+            @PathVariable Long movBancoId) {
+        conciliacionService.conciliarSinTransaccion(movBancoId, empresaId(ud));
+        return ResponseEntity.ok(Map.of("mensaje", "Conciliado manualmente"));
+    }
+
+    // DELETE /api/reconciliation/movements/{movBancoId}
+    @DeleteMapping("/movements/{movBancoId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
+    public ResponseEntity<Map<String, String>> eliminarMovimiento(
+            @AuthenticationPrincipal UsuarioDetails ud,
+            @PathVariable Long movBancoId) {
+        conciliacionService.eliminarMovimiento(movBancoId, empresaId(ud));
+        return ResponseEntity.ok(Map.of("mensaje", "Movimiento eliminado"));
+    }
+
     // POST /api/reconciliation/import-csv
     @PostMapping("/import-csv")
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")

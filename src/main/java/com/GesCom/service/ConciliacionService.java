@@ -13,5 +13,7 @@ public interface ConciliacionService {
     ConciliacionResponse obtenerConciliacion(Long empresaId);
     void vincular(Long movimientoBancoId, Long transaccionId, Long empresaId);
     void desvincular(Long movimientoBancoId, Long empresaId);
+    void conciliarSinTransaccion(Long movimientoBancoId, Long empresaId);
+    void eliminarMovimiento(Long movimientoBancoId, Long empresaId);
     void importarCSV(Long empresaId, String csvContent);
 }

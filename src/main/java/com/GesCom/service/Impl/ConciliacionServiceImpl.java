@@ -129,6 +129,28 @@ public class ConciliacionServiceImpl implements ConciliacionService {
 
     @Override
     @Transactional
+    public void conciliarSinTransaccion(Long movimientoBancoId, Long empresaId) {
+        MovimientoBanco mb = movimientoBancoRepository
+                .findByMovimientoBancoIdAndEmpresa_EmpresaId(movimientoBancoId, empresaId)
+                .orElseThrow(() -> new EntityNotFoundException("Movimiento no encontrado"));
+        mb.setConciliado(true);
+        mb.setFechaConciliacion(LocalDate.now());
+        movimientoBancoRepository.save(mb);
+        log.info("Conciliado manualmente (sin transacción): movimiento banco {}", movimientoBancoId);
+    }
+
+    @Override
+    @Transactional
+    public void eliminarMovimiento(Long movimientoBancoId, Long empresaId) {
+        MovimientoBanco mb = movimientoBancoRepository
+                .findByMovimientoBancoIdAndEmpresa_EmpresaId(movimientoBancoId, empresaId)
+                .orElseThrow(() -> new EntityNotFoundException("Movimiento no encontrado"));
+        movimientoBancoRepository.delete(mb);
+        log.info("Eliminado movimiento banco {}", movimientoBancoId);
+    }
+
+    @Override
+    @Transactional
     public void importarCSV(Long empresaId, String csvContent) {
         Empresa empresa = empresaRepository.findById(empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
