@@ -1,6 +1,7 @@
 package com.GesCom.service.Impl;
 
 import com.GesCom.dto.response.*;
+import com.GesCom.enums.TipoTransaccion;
 import com.GesCom.model.*;
 import com.GesCom.repository.*;
 import com.GesCom.service.ConciliacionService;
@@ -12,10 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -47,30 +45,27 @@ public class ConciliacionServiceImpl implements ConciliacionService {
 
     @Override
     @Transactional
-    public ConciliacionResponse obtenerConciliacion(Long empresaId) {
-        // Auto-match: intentar conciliar movimientos no conciliados
-        autoMatch(empresaId);
-
+    public ConciliacionResponse obtenerConciliacion(Long empresaId, LocalDate desde, LocalDate hasta) {
         List<MovimientoBanco> todos = movimientoBancoRepository.findByEmpresa_EmpresaIdOrderByFechaDesc(empresaId);
         List<MovimientoBancoResponse> conciliados = new ArrayList<>();
         List<MovimientoBancoResponse> sinConciliar = new ArrayList<>();
         Set<Long> txConciliadas = new HashSet<>();
+        Set<Long> txIdsYaVinculadas = new HashSet<>();
 
         for (MovimientoBanco mb : todos) {
-            var resp = toResponse(mb);
-            if (mb.isConciliado()) {
-                conciliados.add(resp);
-                if (mb.getTransaccionId() != null) txConciliadas.add(mb.getTransaccionId());
-            } else {
-                sinConciliar.add(resp);
+            if (mb.isConciliado() && mb.getFecha().compareTo(desde) >= 0 && mb.getFecha().compareTo(hasta) <= 0) {
+                conciliados.add(toResponse(mb));
             }
+            if (mb.getTransaccionId() != null) txIdsYaVinculadas.add(mb.getTransaccionId());
+            if (mb.isConciliado() && mb.getTransaccionId() != null) txConciliadas.add(mb.getTransaccionId());
+            if (!mb.isConciliado()) sinConciliar.add(toResponse(mb));
         }
 
-        // Transacciones bancarias no conciliadas
+        // Transacciones bancarias no conciliadas en el rango
         List<ConciliacionResponse.TxConciliar> txSinConciliar = transaccionRepository
-                .findByEmpresa_EmpresaIdOrderByFechaDesc(empresaId)
+                .findByEmpresa_EmpresaIdAndFechaBetweenOrderByFechaDesc(empresaId, desde, hasta)
                 .stream()
-                .filter(t -> !txConciliadas.contains(t.getTransaccionId()))
+                .filter(t -> !txIdsYaVinculadas.contains(t.getTransaccionId()))
                 .filter(t -> t.getMetodoPago() != null && (
                         t.getMetodoPago().name().equals("TRANSFERENCIA") ||
                         t.getMetodoPago().name().equals("PAGO_MOVIL") ||
@@ -98,15 +93,45 @@ public class ConciliacionServiceImpl implements ConciliacionService {
 
     @Override
     @Transactional
+    public int autoConciliar(Long empresaId) {
+        List<MovimientoBanco> sinConciliar = movimientoBancoRepository
+                .findByEmpresa_EmpresaIdAndConciliadoOrderByFechaDesc(empresaId, false);
+        List<Transaccion> txns = transaccionRepository.findByEmpresa_EmpresaIdOrderByFechaDesc(empresaId);
+        Set<Long> yaVinculadas = new HashSet<>();
+        // Recolectar transacciones ya vinculadas
+        movimientoBancoRepository.findByEmpresa_EmpresaIdAndConciliadoOrderByFechaDesc(empresaId, true)
+                .forEach(mb -> { if (mb.getTransaccionId() != null) yaVinculadas.add(mb.getTransaccionId()); });
+
+        int count = 0;
+        for (MovimientoBanco mb : sinConciliar) {
+            for (Transaccion t : txns) {
+                if (yaVinculadas.contains(t.getTransaccionId())) continue;
+                // Coincidencia: mismo monto, fecha ±3 días, tipo compatible
+                boolean mismoMonto = mb.getMonto().compareTo(t.getTotal()) == 0;
+                boolean fechaCercana = Math.abs(mb.getFecha().toEpochDay() - t.getFecha().toEpochDay()) <= 3;
+                boolean tipoCompatible = (mb.getTipo().equals("INGRESO") && t.getTipo() == TipoTransaccion.INGRESO) ||
+                                        (mb.getTipo().equals("EGRESO") && t.getTipo() == TipoTransaccion.EGRESO);
+                if (mismoMonto && fechaCercana && tipoCompatible) {
+                    mb.setConciliado(true);
+                    mb.setTransaccionId(t.getTransaccionId());
+                    mb.setFechaConciliacion(LocalDate.now());
+                    movimientoBancoRepository.save(mb);
+                    yaVinculadas.add(t.getTransaccionId());
+                    count++;
+                    break;
+                }
+            }
+        }
+        log.info("Auto-conciliación: {} movimientos conciliados para empresa {}", count, empresaId);
+        return count;
+    }
+
+    @Override
+    @Transactional
     public void vincular(Long movimientoBancoId, Long transaccionId, Long empresaId) {
         MovimientoBanco mb = movimientoBancoRepository
                 .findByMovimientoBancoIdAndEmpresa_EmpresaId(movimientoBancoId, empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Movimiento no encontrado"));
-
-        Transaccion t = transaccionRepository
-                .findByTransaccionIdAndEmpresa_EmpresaId(transaccionId, empresaId)
-                .orElseThrow(() -> new EntityNotFoundException("Transacción no encontrada"));
-
         mb.setTransaccionId(transaccionId);
         mb.setConciliado(true);
         mb.setFechaConciliacion(LocalDate.now());
@@ -124,7 +149,6 @@ public class ConciliacionServiceImpl implements ConciliacionService {
         mb.setConciliado(false);
         mb.setFechaConciliacion(null);
         movimientoBancoRepository.save(mb);
-        log.info("Desvinculado: movimiento banco {}", movimientoBancoId);
     }
 
     @Override
@@ -136,7 +160,6 @@ public class ConciliacionServiceImpl implements ConciliacionService {
         mb.setConciliado(true);
         mb.setFechaConciliacion(LocalDate.now());
         movimientoBancoRepository.save(mb);
-        log.info("Conciliado manualmente (sin transacción): movimiento banco {}", movimientoBancoId);
     }
 
     @Override
@@ -146,7 +169,6 @@ public class ConciliacionServiceImpl implements ConciliacionService {
                 .findByMovimientoBancoIdAndEmpresa_EmpresaId(movimientoBancoId, empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Movimiento no encontrado"));
         movimientoBancoRepository.delete(mb);
-        log.info("Eliminado movimiento banco {}", movimientoBancoId);
     }
 
     @Override
@@ -156,7 +178,7 @@ public class ConciliacionServiceImpl implements ConciliacionService {
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
         String[] lineas = csvContent.split("\n");
         int count = 0;
-        for (int i = 1; i < lineas.length; i++) { // saltar cabecera
+        for (int i = 1; i < lineas.length; i++) {
             String linea = lineas[i].trim();
             if (linea.isEmpty()) continue;
             String[] cols = linea.split(",");
@@ -165,36 +187,21 @@ public class ConciliacionServiceImpl implements ConciliacionService {
                 LocalDate fecha = LocalDate.parse(cols[0].trim());
                 String desc = cols[1].trim().replace("\"", "");
                 BigDecimal monto = new BigDecimal(cols[2].trim());
-                String tipo = cols[3].trim().toUpperCase(); // CREDITO o DEBITO
-                if (!tipo.equals("CREDITO") && !tipo.equals("DEBITO")) tipo = "CREDITO";
+                String tipo = cols[3].trim().toUpperCase();
+                if (!tipo.equals("INGRESO") && !tipo.equals("EGRESO")) tipo = "INGRESO";
                 movimientoBancoRepository.save(MovimientoBanco.builder()
                         .empresa(empresa).fecha(fecha).descripcion(desc)
                         .monto(monto).tipo(tipo).conciliado(false).build());
                 count++;
-            } catch (Exception ignored) { /* línea inválida, saltar */ }
+            } catch (Exception ignored) {}
         }
-        log.info("Importados {} movimientos bancarios desde CSV para empresa {}", count, empresaId);
+        log.info("Importados {} movimientos bancarios para empresa {}", count, empresaId);
+        // Auto-conciliar inmediatamente después de importar
+        int matched = autoConciliar(empresaId);
+        log.info("Auto-conciliados {} después de importar CSV", matched);
     }
 
-    private void autoMatch(Long empresaId) {
-        List<MovimientoBanco> sinConciliar = movimientoBancoRepository
-                .findByEmpresa_EmpresaIdAndConciliadoOrderByFechaDesc(empresaId, false);
-        List<Transaccion> txns = transaccionRepository.findByEmpresa_EmpresaIdOrderByFechaDesc(empresaId);
-
-        for (MovimientoBanco mb : sinConciliar) {
-            for (Transaccion t : txns) {
-                // Coincidencia: mismo monto, fecha +/- 3 días
-                if (Math.abs(mb.getMonto().compareTo(t.getTotal())) == 0
-                        && Math.abs(mb.getFecha().toEpochDay() - t.getFecha().toEpochDay()) <= 3) {
-                    mb.setConciliado(true);
-                    mb.setTransaccionId(t.getTransaccionId());
-                    mb.setFechaConciliacion(LocalDate.now());
-                    movimientoBancoRepository.save(mb);
-                    break;
-                }
-            }
-        }
-    }
+    // ─── Helpers ───────────────────────────────────────────────────
 
     private MovimientoBancoResponse toResponse(MovimientoBanco mb) {
         String numFactura = null;

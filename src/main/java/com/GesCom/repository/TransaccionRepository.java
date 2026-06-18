@@ -36,6 +36,7 @@ public interface TransaccionRepository extends JpaRepository<Transaccion, Long>,
 
     List<Transaccion> findByEmpresa_EmpresaIdAndFecha(Long empresaId, LocalDate fecha);
     List<Transaccion> findByEmpresa_EmpresaIdAndFechaBetween(Long empresaId, LocalDate desde, LocalDate hasta);
+    List<Transaccion> findByEmpresa_EmpresaIdAndFechaBetweenOrderByFechaDesc(Long empresaId, LocalDate desde, LocalDate hasta);
 
     List<Transaccion> findByEmpresa_EmpresaIdAndTipoAndEstado(Long empresaId, TipoTransaccion tipo, EstadoTransaccion estado);
 }

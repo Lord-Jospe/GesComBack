@@ -50,12 +50,23 @@ public class ConciliacionController {
         return ResponseEntity.ok(conciliacionService.listarMovimientos(empresaId(ud)));
     }
 
-    // GET /api/reconciliation — obtener conciliación completa
+    // GET /api/reconciliation?desde=&hasta= — obtener conciliación completa
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
     public ResponseEntity<ConciliacionResponse> obtenerConciliacion(
+            @AuthenticationPrincipal UsuarioDetails ud,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return ResponseEntity.ok(conciliacionService.obtenerConciliacion(empresaId(ud), desde, hasta));
+    }
+
+    // POST /api/reconciliation/auto-match — auto-conciliar en lote
+    @PostMapping("/auto-match")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
+    public ResponseEntity<Map<String, Object>> autoConciliar(
             @AuthenticationPrincipal UsuarioDetails ud) {
-        return ResponseEntity.ok(conciliacionService.obtenerConciliacion(empresaId(ud)));
+        int count = conciliacionService.autoConciliar(empresaId(ud));
+        return ResponseEntity.ok(Map.of("mensaje", count + " movimiento(s) conciliado(s)", "count", count));
     }
 
     // POST /api/reconciliation/match/{movBancoId} — vincular a transacción
