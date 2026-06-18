@@ -168,7 +168,9 @@ public class TransaccionServiceImpl implements TransaccionService {
                 .totalUsd(totalUsd)
                 .totalVes(totalVes)
                 .metodoPago(request.metodoPago())
-                .estado(EstadoTransaccion.PENDIENTE)
+                .estado(request.pendiente() != null && request.pendiente()
+                        ? EstadoTransaccion.PENDIENTE
+                        : EstadoTransaccion.PAGADA)
                 .notas(request.notas())
                 .numeroFactura(numeroFactura)
                 .build();
