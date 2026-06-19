@@ -4,7 +4,6 @@ import com.GesCom.dto.request.CalcularNominaRequest;
 import com.GesCom.dto.response.NominaResponse;
 import com.GesCom.security.user.UsuarioDetails;
 import com.GesCom.service.NominaService;
-import com.GesCom.service.SuscripcionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,7 +21,6 @@ import java.util.Map;
 public class NominaController {
 
     private final NominaService nominaService;
-    private final SuscripcionService suscripcionService;
 
     private Long empresaId(UsuarioDetails ud) {
         return ud.getUsuario().getEmpresa().getEmpresaId();
@@ -33,7 +31,6 @@ public class NominaController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
     public ResponseEntity<NominaResponse> calcular(
             @Valid @RequestBody CalcularNominaRequest req, @AuthenticationPrincipal UsuarioDetails ud) {
-        suscripcionService.verificarAccesoNomina(empresaId(ud));
         return ResponseEntity.status(HttpStatus.CREATED).body(nominaService.calcularNomina(req, empresaId(ud)));
     }
 

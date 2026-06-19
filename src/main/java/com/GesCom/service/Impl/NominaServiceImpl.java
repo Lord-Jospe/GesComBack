@@ -10,6 +10,7 @@ import com.GesCom.repository.EmpresaRepository;
 import com.GesCom.repository.NominaRepository;
 import com.GesCom.repository.UsuarioRepository;
 import com.GesCom.service.NominaService;
+import com.GesCom.service.SuscripcionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,9 +35,11 @@ public class NominaServiceImpl implements NominaService {
     private final NominaRepository nominaRepository;
     private final UsuarioRepository usuarioRepository;
     private final EmpresaRepository empresaRepository;
+    private final SuscripcionService suscripcionService;
 
     @Override @Transactional
     public NominaResponse calcularNomina(CalcularNominaRequest request, Long empresaId) {
+        suscripcionService.verificarAccesoNomina(empresaId);
         Empresa empresa = empresaRepository.findById(empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
 

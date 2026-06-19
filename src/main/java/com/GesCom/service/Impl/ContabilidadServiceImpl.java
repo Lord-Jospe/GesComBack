@@ -6,6 +6,7 @@ import com.GesCom.enums.TipoCuenta;
 import com.GesCom.model.*;
 import com.GesCom.repository.*;
 import com.GesCom.service.ContabilidadService;
+import com.GesCom.service.SuscripcionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +26,7 @@ public class ContabilidadServiceImpl implements ContabilidadService {
     private final PlanCuentaRepository planCuentaRepository;
     private final AsientoContableRepository asientoRepository;
     private final EmpresaRepository empresaRepository;
+    private final SuscripcionService suscripcionService;
 
     // ─── Plan de cuentas ──────────────────────────────────────────
 
@@ -62,6 +64,7 @@ public class ContabilidadServiceImpl implements ContabilidadService {
 
     @Override @Transactional
     public AsientoResponse crearAsientoManual(CrearAsientoRequest request, Long empresaId) {
+        suscripcionService.verificarAccesoContabilidad(empresaId);
         Empresa empresa = empresaRepository.findById(empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
 

@@ -5,7 +5,6 @@ import com.GesCom.dto.response.*;
 import com.GesCom.enums.TipoCuenta;
 import com.GesCom.security.user.UsuarioDetails;
 import com.GesCom.service.ContabilidadService;
-import com.GesCom.service.SuscripcionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -25,7 +24,6 @@ import java.util.Map;
 public class ContabilidadController {
 
     private final ContabilidadService contabilidadService;
-    private final SuscripcionService suscripcionService;
 
     private Long empresaId(UsuarioDetails ud) {
         return ud.getUsuario().getEmpresa().getEmpresaId();
@@ -66,7 +64,6 @@ public class ContabilidadController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
     public ResponseEntity<AsientoResponse> crearAsiento(
             @Valid @RequestBody CrearAsientoRequest req, @AuthenticationPrincipal UsuarioDetails ud) {
-        suscripcionService.verificarAccesoContabilidad(empresaId(ud));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(contabilidadService.crearAsientoManual(req, empresaId(ud)));
     }
