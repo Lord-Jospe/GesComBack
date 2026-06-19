@@ -7,11 +7,13 @@ import com.GesCom.dto.request.UsuarioFiltroRequest;
 import com.GesCom.dto.response.UsuarioPageResponse;
 import com.GesCom.dto.response.UsuarioResponse;
 import com.GesCom.model.Empresa;
+import com.GesCom.model.PlanSuscripcion;
 import com.GesCom.model.Rol;
 import com.GesCom.model.Usuario;
 import com.GesCom.repository.EmpresaRepository;
 import com.GesCom.repository.RolRepository;
 import com.GesCom.repository.UsuarioRepository;
+import com.GesCom.service.SuscripcionService;
 import com.GesCom.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,12 +34,24 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final RolRepository rolRepository;
     private final EmpresaRepository empresaRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SuscripcionService suscripcionService;
 
 
     // --- Crear Usuario ----
     @Override
     @Transactional
     public UsuarioResponse crearUsuario(CrearUsuarioRequest request, Long empresaId) {
+        // Verificar límite de usuarios del plan
+        PlanSuscripcion plan = suscripcionService.obtenerPlanActivo(empresaId);
+        if (plan.getMaxUsuarios() != null) {
+            long actuales = usuarioRepository.findByEmpresa_EmpresaId(empresaId).stream()
+                    .filter(u -> u.isActive()).count();
+            if (actuales >= plan.getMaxUsuarios()) {
+                throw new IllegalStateException(
+                        "Límite de usuarios alcanzado (" + plan.getMaxUsuarios() + "). Actualiza tu plan.");
+            }
+        }
+
         if (usuarioRepository.existsByEmailAndIsActiveTrue(request.email())) {
             throw new IllegalArgumentException(
                     "Ya existe un usuario registrado con ese correo");

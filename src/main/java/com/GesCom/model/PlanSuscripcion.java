@@ -29,6 +29,9 @@ public class PlanSuscripcion {
     @Column(name = "max_transacciones_mes")
     private Integer maxTransaccionesMes; // null = ilimitado
 
+    @Column(name = "max_usuarios")
+    private Integer maxUsuarios; // null = ilimitado
+
     @Column(name = "tiene_inventario", nullable = false)
     private boolean tieneInventario = false;
 

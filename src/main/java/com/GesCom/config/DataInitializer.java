@@ -63,19 +63,20 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void crearPlanes() {
-        upsertPlan("SEMILLA", BigDecimal.ZERO, 15, null, false, false, false);
-        upsertPlan("EMPRENDEDOR", new BigDecimal("8.00"), 200, 50, false, false, false);
-        upsertPlan("EMPRESA", new BigDecimal("20.00"), null, null, true, true, true);
+        upsertPlan("SEMILLA", BigDecimal.ZERO, 15, null, 1, false, false, false);
+        upsertPlan("EMPRENDEDOR", new BigDecimal("8.00"), 200, 50, 3, true, false, false);
+        upsertPlan("EMPRESA", new BigDecimal("20.00"), null, null, null, true, true, true);
         log.info("Planes actualizados: {}", planRepository.count());
     }
 
-    private void upsertPlan(String nombre, BigDecimal precio, Integer maxTrans, Integer maxArch,
+    private void upsertPlan(String nombre, BigDecimal precio, Integer maxTrans, Integer maxArch, Integer maxUsuarios,
                             boolean inventario, boolean nomina, boolean contabilidad) {
         PlanSuscripcion plan = planRepository.findByNombre(nombre)
                 .orElse(PlanSuscripcion.builder().nombre(nombre).build());
         plan.setPrecioUsd(precio);
         plan.setMaxTransaccionesMes(maxTrans);
         plan.setMaxArchivosMes(maxArch);
+        plan.setMaxUsuarios(maxUsuarios);
         plan.setTieneInventario(inventario);
         plan.setTieneNomina(nomina);
         plan.setTieneContabilidad(contabilidad);
