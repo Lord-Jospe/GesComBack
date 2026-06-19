@@ -65,6 +65,7 @@ public class EmpresaController {
                 .estado(s.getEstado())
                 .maxTransaccionesMes(plan.getMaxTransaccionesMes() != null ? plan.getMaxTransaccionesMes() : 0)
                 .maxArchivosMes(plan.getMaxArchivosMes() != null ? plan.getMaxArchivosMes() : 0)
+                .maxUsuarios(plan.getMaxUsuarios())
                 .tieneInventario(plan.isTieneInventario())
                 .tieneNomina(plan.isTieneNomina())
                 .tieneContabilidad(plan.isTieneContabilidad())

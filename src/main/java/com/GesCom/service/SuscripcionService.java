@@ -7,5 +7,7 @@ public interface SuscripcionService {
     void verificarAccesoInventario(Long empresaId);
     void verificarAccesoNomina(Long empresaId);
     void verificarAccesoContabilidad(Long empresaId);
+    void verificarLimiteTransacciones(Long empresaId);
+    void verificarLimiteArchivos(Long empresaId);
     void marcarSuscripcionesVencidas();
 }

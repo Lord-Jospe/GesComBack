@@ -17,5 +17,7 @@ public interface AdjuntoRepository extends JpaRepository<Adjunto, Long> {
 
     Page<Adjunto> findByEmpresa_EmpresaIdOrderByCreatedAtDesc(Long empresaId, Pageable pageable);
 
+    List<Adjunto> findByTransaccionIsNullOrderByCreatedAtDesc();
+
     void deleteByTransaccion_TransaccionId(Long transaccionId);
 }

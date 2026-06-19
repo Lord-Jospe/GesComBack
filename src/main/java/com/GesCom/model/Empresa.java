@@ -55,12 +55,25 @@ public class Empresa {
     @Column(name = "igtf_activo", nullable = false)
     private boolean igtfActivo = false;
 
+    // ─── Deducciones de nómina configurables ──────────────────────
+    @Column(name = "sso_porcentaje", precision = 5, scale = 2)
+    private java.math.BigDecimal ssoPorcentaje = new java.math.BigDecimal("4.00");
+
+    @Column(name = "inces_porcentaje", precision = 5, scale = 2)
+    private java.math.BigDecimal incesPorcentaje = new java.math.BigDecimal("0.50");
+
+    @Column(name = "faov_porcentaje", precision = 5, scale = 2)
+    private java.math.BigDecimal faovPorcentaje = new java.math.BigDecimal("1.00");
+
     // ─── Numeración de facturas ───────────────────────────────────
     @Column(name = "factura_prefijo", length = 10)
     private String facturaPrefijo;
 
     @Column(name = "factura_siguiente_numero", nullable = false)
     private Integer facturaSiguienteNumero = 1;
+
+    @Column(name = "stock_minimo_default")
+    private Integer stockMinimoDefault = 5;
 
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;

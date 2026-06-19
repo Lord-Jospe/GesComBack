@@ -31,6 +31,8 @@ public record CrearTransaccionRequest(
         BigDecimal descuentoGlobalPorcentaje,
         BigDecimal descuentoGlobalMonto,
 
+        Boolean pendiente,
+
         String notas,
 
         @NotEmpty(message = "Debe incluir al menos una línea")

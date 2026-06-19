@@ -15,14 +15,17 @@ public record EmpresaResponse(
         String monedaBase,
         boolean isActive,
 
-        // Configuración fiscal
         boolean ivaActivo,
         BigDecimal ivaPorcentaje,
         boolean igtfActivo,
 
-        // Numeración de facturas
         String facturaPrefijo,
         Integer facturaSiguienteNumero,
+
+        BigDecimal ssoPorcentaje,
+        BigDecimal incesPorcentaje,
+        BigDecimal faovPorcentaje,
+        Integer stockMinimoDefault,
 
         LocalDateTime createdAt
 ) {
