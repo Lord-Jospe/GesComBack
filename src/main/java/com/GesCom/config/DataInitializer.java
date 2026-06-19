@@ -63,40 +63,22 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void crearPlanes() {
-        if (planRepository.count() == 0) {
-            planRepository.save(PlanSuscripcion.builder()
-                    .nombre("SEMILLA")
-                    .precioUsd(BigDecimal.ZERO)
-                    .maxTransaccionesMes(15)
-                    .maxArchivosMes(null) // sin acceso a bóveda
-                    .tieneInventario(false)
-                    .tieneNomina(false)
-                    .tieneContabilidad(false)
-                    .build());
+        upsertPlan("SEMILLA", BigDecimal.ZERO, 15, null, false, false, false);
+        upsertPlan("EMPRENDEDOR", new BigDecimal("8.00"), null, 50, false, false, false);
+        upsertPlan("NEGOCIO", new BigDecimal("20.00"), null, null, true, true, true);
+        log.info("Planes actualizados: {}", planRepository.count());
+    }
 
-            planRepository.save(PlanSuscripcion.builder()
-                    .nombre("EMPRENDEDOR")
-                    .precioUsd(new BigDecimal("7.99"))
-                    .maxTransaccionesMes(null) // ilimitado
-                    .maxArchivosMes(50)
-                    .tieneInventario(false)
-                    .tieneNomina(false)
-                    .tieneContabilidad(false)
-                    .build());
-
-            planRepository.save(PlanSuscripcion.builder()
-                    .nombre("NEGOCIO")
-                    .precioUsd(new BigDecimal("14.99"))
-                    .maxTransaccionesMes(null) // ilimitado
-                    .maxArchivosMes(null) // ilimitado
-                    .tieneInventario(true)
-                    .tieneNomina(true)
-                    .tieneContabilidad(true)
-                    .build());
-
-            log.info("Planes pre-cargados: SEMILLA, EMPRENDEDOR, NEGOCIO");
-        } else {
-            log.info("Planes ya existentes: {}", planRepository.count());
-        }
+    private void upsertPlan(String nombre, BigDecimal precio, Integer maxTrans, Integer maxArch,
+                            boolean inventario, boolean nomina, boolean contabilidad) {
+        PlanSuscripcion plan = planRepository.findByNombre(nombre)
+                .orElse(PlanSuscripcion.builder().nombre(nombre).build());
+        plan.setPrecioUsd(precio);
+        plan.setMaxTransaccionesMes(maxTrans);
+        plan.setMaxArchivosMes(maxArch);
+        plan.setTieneInventario(inventario);
+        plan.setTieneNomina(nomina);
+        plan.setTieneContabilidad(contabilidad);
+        planRepository.save(plan);
     }
 }
