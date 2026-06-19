@@ -28,9 +28,7 @@ import java.util.List;
 public class NominaServiceImpl implements NominaService {
 
     // Deducciones legales venezolanas (RF-58)
-    private static final BigDecimal SSO_PCT   = new BigDecimal("4.00");   // Seguro Social Obligatorio
-    private static final BigDecimal INCES_PCT = new BigDecimal("0.50");  // INCES
-    private static final BigDecimal FAOV_PCT  = new BigDecimal("1.00");  // Fondo de Ahorro Obligatorio para Vivienda
+    // Las deducciones ahora vienen de la configuración de la empresa (ajustes del sistema)
 
     private final NominaRepository nominaRepository;
     private final UsuarioRepository usuarioRepository;
@@ -70,17 +68,21 @@ public class NominaServiceImpl implements NominaService {
             }
         }
 
-        // Cálculo de deducciones legales sobre el salario base
-        BigDecimal sso   = salarioBase.multiply(SSO_PCT).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-        BigDecimal inces = salarioBase.multiply(INCES_PCT).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
-        BigDecimal faov  = salarioBase.multiply(FAOV_PCT).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        // Cálculo de deducciones legales desde configuración de la empresa
+        BigDecimal ssoPct = empresa.getSsoPorcentaje() != null ? empresa.getSsoPorcentaje() : new BigDecimal("4.00");
+        BigDecimal incesPct = empresa.getIncesPorcentaje() != null ? empresa.getIncesPorcentaje() : new BigDecimal("0.50");
+        BigDecimal faovPct = empresa.getFaovPorcentaje() != null ? empresa.getFaovPorcentaje() : new BigDecimal("1.00");
+
+        BigDecimal sso   = salarioBase.multiply(ssoPct).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        BigDecimal inces = salarioBase.multiply(incesPct).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+        BigDecimal faov  = salarioBase.multiply(faovPct).divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
 
         conceptos.add(ConceptoNomina.builder().tipo(TipoConcepto.DEDUCCION)
-                .descripcion("SSO (4%)").monto(sso).build());
+                .descripcion("SSO (" + ssoPct + "%)").monto(sso).build());
         conceptos.add(ConceptoNomina.builder().tipo(TipoConcepto.DEDUCCION)
-                .descripcion("INCES (0.5%)").monto(inces).build());
+                .descripcion("INCES (" + incesPct + "%)").monto(inces).build());
         conceptos.add(ConceptoNomina.builder().tipo(TipoConcepto.DEDUCCION)
-                .descripcion("FAOV (1%)").monto(faov).build());
+                .descripcion("FAOV (" + faovPct + "%)").monto(faov).build());
 
         // Totales
         BigDecimal totalAsignaciones = salarioBase.add(totalExtras);

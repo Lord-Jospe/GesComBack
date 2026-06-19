@@ -1,10 +1,13 @@
 package com.GesCom.service.Impl;
 
 import com.GesCom.dto.response.*;
+import com.GesCom.enums.EstadoTransaccion;
+import com.GesCom.enums.MetodoPago;
 import com.GesCom.enums.TipoTransaccion;
 import com.GesCom.model.*;
 import com.GesCom.repository.*;
 import com.GesCom.service.ConciliacionService;
+import com.GesCom.service.TransaccionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +26,7 @@ public class ConciliacionServiceImpl implements ConciliacionService {
     private final MovimientoBancoRepository movimientoBancoRepository;
     private final TransaccionRepository transaccionRepository;
     private final EmpresaRepository empresaRepository;
+    private final TransaccionService transaccionService;
 
     @Override
     @Transactional
@@ -157,9 +161,26 @@ public class ConciliacionServiceImpl implements ConciliacionService {
         MovimientoBanco mb = movimientoBancoRepository
                 .findByMovimientoBancoIdAndEmpresa_EmpresaId(movimientoBancoId, empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Movimiento no encontrado"));
+
+        // Crear transacción automática para reflejar en ingresos/egresos
+        boolean esIngreso = "INGRESO".equals(mb.getTipo());
+        Transaccion t = transaccionRepository.save(Transaccion.builder()
+                .empresa(mb.getEmpresa())
+                .tipo(esIngreso ? TipoTransaccion.INGRESO : TipoTransaccion.EGRESO)
+                .fecha(mb.getFecha())
+                .moneda(mb.getEmpresa().getMonedaBase())
+                .subtotal(mb.getMonto())
+                .total(mb.getMonto())
+                .metodoPago(MetodoPago.TRANSFERENCIA)
+                .estado(EstadoTransaccion.PAGADA)
+                .notas("Conciliación bancaria: " + mb.getDescripcion())
+                .build());
+
         mb.setConciliado(true);
+        mb.setTransaccionId(t.getTransaccionId());
         mb.setFechaConciliacion(LocalDate.now());
         movimientoBancoRepository.save(mb);
+        log.info("Conciliado con transacción #{}: {}", t.getTransaccionId(), mb.getDescripcion());
     }
 
     @Override
