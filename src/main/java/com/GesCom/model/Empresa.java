@@ -72,6 +72,9 @@ public class Empresa {
     @Column(name = "factura_siguiente_numero", nullable = false)
     private Integer facturaSiguienteNumero = 1;
 
+    @Column(name = "stock_minimo_default")
+    private Integer stockMinimoDefault = 5;
+
     @Column(name = "is_active", nullable = false)
     private boolean isActive = true;
 

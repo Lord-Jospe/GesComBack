@@ -36,6 +36,14 @@ public record EditarEmpresaRequest(
         // Numeración de facturas
         @Size(max = 10)
         String facturaPrefijo,
-        Integer facturaSiguienteNumero
+        Integer facturaSiguienteNumero,
+
+        // Deducciones de nómina
+        BigDecimal ssoPorcentaje,
+        BigDecimal incesPorcentaje,
+        BigDecimal faovPorcentaje,
+
+        // Stock
+        Integer stockMinimoDefault
 ) {
 }

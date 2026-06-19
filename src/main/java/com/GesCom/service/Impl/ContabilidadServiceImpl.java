@@ -253,6 +253,16 @@ public class ContabilidadServiceImpl implements ContabilidadService {
         PlanCuenta cuenta = planCuentaRepository.findByCuentaIdAndEmpresa_EmpresaId(cuentaId, empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Cuenta no encontrada"));
 
+        // Incluir la cuenta seleccionada + todas sus cuentas hijas
+        Set<Long> idsCuentas = new HashSet<>();
+        idsCuentas.add(cuentaId);
+        List<PlanCuenta> todas = planCuentaRepository.findByEmpresa_EmpresaIdAndIsActiveTrueOrderByCodigo(empresaId);
+        for (PlanCuenta c : todas) {
+            if (c.getCuentaPadreId() != null && idsCuentas.contains(c.getCuentaPadreId())) {
+                idsCuentas.add(c.getCuentaId());
+            }
+        }
+
         List<AsientoContable> asientos;
         if (desde != null && hasta != null) {
             asientos = asientoRepository.findByEmpresa_EmpresaIdAndFechaBetweenOrderByFechaAscNumeroAsientoAsc(empresaId, desde, hasta);
@@ -266,7 +276,7 @@ public class ContabilidadServiceImpl implements ContabilidadService {
 
         for (AsientoContable a : asientos) {
             for (LineaAsiento l : a.getLineas()) {
-                if (l.getCuenta().getCuentaId().equals(cuentaId)) {
+                if (idsCuentas.contains(l.getCuenta().getCuentaId())) {
                     movimientos.add(toLineaResponse(l));
                     if (l.isEsDebito()) totalDebitos = totalDebitos.add(l.getMonto());
                     else totalCreditos = totalCreditos.add(l.getMonto());

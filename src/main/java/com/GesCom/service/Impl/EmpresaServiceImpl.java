@@ -65,6 +65,10 @@ public class EmpresaServiceImpl implements EmpresaService {
         // ─── Numeración de facturas ───────────────────────────────
         if (request.facturaPrefijo()         != null) empresa.setFacturaPrefijo(request.facturaPrefijo());
         if (request.facturaSiguienteNumero() != null) empresa.setFacturaSiguienteNumero(request.facturaSiguienteNumero());
+        if (request.ssoPorcentaje()     != null) empresa.setSsoPorcentaje(request.ssoPorcentaje());
+        if (request.incesPorcentaje()   != null) empresa.setIncesPorcentaje(request.incesPorcentaje());
+        if (request.faovPorcentaje()    != null) empresa.setFaovPorcentaje(request.faovPorcentaje());
+        if (request.stockMinimoDefault() != null) empresa.setStockMinimoDefault(request.stockMinimoDefault());
 
         var saved = empresaRepository.save(empresa);
         log.info("Perfil de empresa editado: id={}", empresaId);
@@ -102,6 +106,10 @@ public class EmpresaServiceImpl implements EmpresaService {
                 e.isIgtfActivo(),
                 e.getFacturaPrefijo(),
                 e.getFacturaSiguienteNumero(),
+                e.getSsoPorcentaje(),
+                e.getIncesPorcentaje(),
+                e.getFaovPorcentaje(),
+                e.getStockMinimoDefault(),
                 e.getCreatedAt()
         );
     }
