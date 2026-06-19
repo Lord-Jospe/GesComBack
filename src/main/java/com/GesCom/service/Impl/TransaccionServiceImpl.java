@@ -8,6 +8,7 @@ import com.GesCom.enums.TipoTransaccion;
 import com.GesCom.model.*;
 import com.GesCom.repository.*;
 import com.GesCom.service.ContabilidadService;
+import com.GesCom.service.SuscripcionService;
 import com.GesCom.service.TransaccionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -36,12 +37,15 @@ public class TransaccionServiceImpl implements TransaccionService {
     private final ProductoRepository productoRepository;
     private final MovimientoInventarioRepository movimientoInventarioRepository;
     private final ContabilidadService contabilidadService;
+    private final SuscripcionService suscripcionService;
 
     private static final BigDecimal IGTF_RATE = new BigDecimal("3.00");
 
     @Override
     @Transactional
     public TransaccionResponse crear(CrearTransaccionRequest request, Long empresaId) {
+
+        suscripcionService.verificarLimiteTransacciones(empresaId);
 
         Empresa empresa = empresaRepository.findById(empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));

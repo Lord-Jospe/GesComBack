@@ -10,5 +10,6 @@ import java.util.List;
 public interface ComprobantePagoRepository extends JpaRepository<ComprobantePago, Long> {
     List<ComprobantePago> findByEmpresa_EmpresaIdOrderByCreatedAtDesc(Long empresaId);
     List<ComprobantePago> findByEstadoOrderByCreatedAtDesc(String estado);
+    List<ComprobantePago> findByEstadoNotOrderByCreatedAtDesc(String estado);
     long countByEstado(String estado);
 }

@@ -32,6 +32,9 @@ public class ComprobantePago {
     @Column(length = 50, nullable = false)
     private String estado; // PENDIENTE, APROBADO, RECHAZADO
 
+    @Column(name = "plan_solicitado", length = 50)
+    private String planSolicitado; // EMPRENDEDOR o NEGOCIO
+
     @Column(length = 500)
     private String notas;
 

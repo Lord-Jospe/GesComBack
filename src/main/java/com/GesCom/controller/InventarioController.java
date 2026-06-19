@@ -9,6 +9,7 @@ import com.GesCom.dto.response.ProductoResponse;
 import com.GesCom.enums.TipoMovimientoInventario;
 import com.GesCom.security.user.UsuarioDetails;
 import com.GesCom.service.InventarioService;
+import com.GesCom.service.SuscripcionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -29,6 +30,7 @@ import java.util.Map;
 public class InventarioController {
 
     private final InventarioService inventarioService;
+    private final SuscripcionService suscripcionService;
 
     private Long empresaId(UsuarioDetails ud) {
         return ud.getUsuario().getEmpresa().getEmpresaId();
@@ -39,7 +41,17 @@ public class InventarioController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
     public ResponseEntity<ProductoResponse> crear(
             @Valid @RequestBody CrearProductoRequest req, @AuthenticationPrincipal UsuarioDetails ud) {
+        suscripcionService.verificarAccesoInventario(empresaId(ud));
         return ResponseEntity.status(HttpStatus.CREATED).body(inventarioService.crearProducto(req, empresaId(ud)));
+    }
+
+    @PostMapping("/movements")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR', 'OPERADOR')")
+    public ResponseEntity<MovimientoInventarioResponse> movimiento(
+            @Valid @RequestBody RegistrarMovimientoRequest req, @AuthenticationPrincipal UsuarioDetails ud) {
+        suscripcionService.verificarAccesoInventario(empresaId(ud));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(inventarioService.registrarMovimiento(req, empresaId(ud), ud.getUsuario().getUsuarioId()));
     }
 
     // GET /api/inventory

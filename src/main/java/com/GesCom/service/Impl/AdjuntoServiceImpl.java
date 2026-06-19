@@ -9,6 +9,7 @@ import com.GesCom.repository.EmpresaRepository;
 import com.GesCom.repository.TransaccionRepository;
 import com.GesCom.service.AdjuntoService;
 import com.GesCom.service.FileStorageService;
+import com.GesCom.service.SuscripcionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,10 +28,12 @@ public class AdjuntoServiceImpl implements AdjuntoService {
     private final TransaccionRepository transaccionRepository;
     private final EmpresaRepository empresaRepository;
     private final FileStorageService fileStorageService;
+    private final SuscripcionService suscripcionService;
 
     @Override
     @Transactional
     public AdjuntoResponse subir(Long transaccionId, MultipartFile archivo, Long empresaId) {
+        suscripcionService.verificarLimiteArchivos(empresaId);
         Transaccion t = transaccionRepository
                 .findByTransaccionIdAndEmpresa_EmpresaId(transaccionId, empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Transacción no encontrada"));
@@ -63,6 +66,7 @@ public class AdjuntoServiceImpl implements AdjuntoService {
     @Override
     @Transactional
     public AdjuntoResponse subirSuelto(MultipartFile archivo, Long empresaId) {
+        suscripcionService.verificarLimiteArchivos(empresaId);
         Empresa empresa = empresaRepository.findById(empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
         String nombreAlmacenado = fileStorageService.guardar(archivo, empresaId);

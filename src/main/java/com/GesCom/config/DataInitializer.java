@@ -64,8 +64,8 @@ public class DataInitializer implements CommandLineRunner {
 
     private void crearPlanes() {
         upsertPlan("SEMILLA", BigDecimal.ZERO, 15, null, false, false, false);
-        upsertPlan("EMPRENDEDOR", new BigDecimal("8.00"), null, 50, false, false, false);
-        upsertPlan("NEGOCIO", new BigDecimal("20.00"), null, null, true, true, true);
+        upsertPlan("EMPRENDEDOR", new BigDecimal("8.00"), 200, 50, false, false, false);
+        upsertPlan("EMPRESA", new BigDecimal("20.00"), null, null, true, true, true);
         log.info("Planes actualizados: {}", planRepository.count());
     }
 

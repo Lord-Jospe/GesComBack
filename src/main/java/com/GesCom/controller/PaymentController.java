@@ -3,6 +3,7 @@ package com.GesCom.controller;
 import com.GesCom.security.user.UsuarioDetails;
 import com.GesCom.service.PaymentService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +17,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/payment")
 @RequiredArgsConstructor
+@Slf4j
 public class PaymentController {
 
     private final PaymentService paymentService;
@@ -46,8 +48,10 @@ public class PaymentController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     public ResponseEntity<Map<String, String>> subirComprobante(
             @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "plan", required = false) String planSolicitado,
             @AuthenticationPrincipal UsuarioDetails ud) {
-        try { return ResponseEntity.ok(paymentService.subirComprobante(file, empresaId(ud))); }
+        log.info("Comprobante recibido: file={}, plan={}", file.getOriginalFilename(), planSolicitado);
+        try { return ResponseEntity.ok(paymentService.subirComprobante(file, planSolicitado, empresaId(ud))); }
         catch (IOException e) { return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage())); }
     }
 
@@ -83,6 +87,12 @@ public class PaymentController {
                 body.getOrDefault("estado", "APROBADO"),
                 body.get("notas"));
         return ResponseEntity.ok(Map.of("mensaje", "Comprobante actualizado"));
+    }
+
+    @GetMapping("/admin/history")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<List<Map<String, Object>>> historialComprobantes() {
+        return ResponseEntity.ok(paymentService.todosComprobantes());
     }
 
     @GetMapping("/admin/stats")
