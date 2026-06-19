@@ -15,6 +15,7 @@ public record SuscripcionResponse(
         String estado,
         int maxTransaccionesMes,
         int maxArchivosMes,
+        Integer maxUsuarios,
         boolean tieneInventario,
         boolean tieneNomina,
         boolean tieneContabilidad

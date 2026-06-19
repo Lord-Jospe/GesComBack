@@ -31,8 +31,7 @@ public class NominaController {
     @PreAuthorize("hasAnyRole('ADMIN', 'CONTADOR')")
     public ResponseEntity<NominaResponse> calcular(
             @Valid @RequestBody CalcularNominaRequest req, @AuthenticationPrincipal UsuarioDetails ud) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(nominaService.calcularNomina(req, empresaId(ud)));
+        return ResponseEntity.status(HttpStatus.CREATED).body(nominaService.calcularNomina(req, empresaId(ud)));
     }
 
     // GET /api/payroll — RF-63

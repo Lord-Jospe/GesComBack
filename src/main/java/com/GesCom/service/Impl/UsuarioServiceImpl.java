@@ -7,14 +7,17 @@ import com.GesCom.dto.request.UsuarioFiltroRequest;
 import com.GesCom.dto.response.UsuarioPageResponse;
 import com.GesCom.dto.response.UsuarioResponse;
 import com.GesCom.model.Empresa;
+import com.GesCom.model.PlanSuscripcion;
 import com.GesCom.model.Rol;
 import com.GesCom.model.Usuario;
 import com.GesCom.repository.EmpresaRepository;
 import com.GesCom.repository.RolRepository;
 import com.GesCom.repository.UsuarioRepository;
+import com.GesCom.service.SuscripcionService;
 import com.GesCom.service.UsuarioService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,12 +34,24 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final RolRepository rolRepository;
     private final EmpresaRepository empresaRepository;
     private final PasswordEncoder passwordEncoder;
+    private final SuscripcionService suscripcionService;
 
 
     // --- Crear Usuario ----
     @Override
     @Transactional
     public UsuarioResponse crearUsuario(CrearUsuarioRequest request, Long empresaId) {
+        // Verificar límite de usuarios del plan
+        PlanSuscripcion plan = suscripcionService.obtenerPlanActivo(empresaId);
+        if (plan.getMaxUsuarios() != null) {
+            long actuales = usuarioRepository.findByEmpresa_EmpresaId(empresaId).stream()
+                    .filter(u -> u.isActive()).count();
+            if (actuales >= plan.getMaxUsuarios()) {
+                throw new IllegalStateException(
+                        "Límite de usuarios alcanzado (" + plan.getMaxUsuarios() + "). Actualiza tu plan.");
+            }
+        }
+
         if (usuarioRepository.existsByEmailAndIsActiveTrue(request.email())) {
             throw new IllegalArgumentException(
                     "Ya existe un usuario registrado con ese correo");
@@ -170,7 +185,21 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional(readOnly = true)
     public UsuarioPageResponse obtenerPaginado(Long empresaId, UsuarioFiltroRequest filtro) {
-        return null;
+        var pageable = PageRequest.of(filtro.pagina(), filtro.tamano());
+        var page = usuarioRepository.findPaginado(
+                empresaId,
+                filtro.soloActivos(),
+                filtro.rolId(),
+                filtro.busqueda() != null && !filtro.busqueda().isBlank() ? filtro.busqueda() : null,
+                pageable);
+
+        return new UsuarioPageResponse(
+                page.getContent().stream().map(this::toResponse).toList(),
+                page.getNumber(),
+                page.getTotalPages(),
+                page.getTotalElements(),
+                page.getSize(),
+                page.isLast());
     }
 
     // Verifica que el usuario pertenezca a la empresa

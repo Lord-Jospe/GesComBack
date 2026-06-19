@@ -16,6 +16,7 @@ import com.GesCom.repository.MovimientoInventarioRepository;
 import com.GesCom.repository.ProductoRepository;
 import com.GesCom.repository.UsuarioRepository;
 import com.GesCom.service.InventarioService;
+import com.GesCom.service.SuscripcionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,9 +37,11 @@ public class InventarioServiceImpl implements InventarioService {
     private final MovimientoInventarioRepository movimientoRepository;
     private final EmpresaRepository empresaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final SuscripcionService suscripcionService;
 
     @Override @Transactional
     public ProductoResponse crearProducto(CrearProductoRequest request, Long empresaId) {
+        suscripcionService.verificarAccesoInventario(empresaId);
         Empresa empresa = empresaRepository.findById(empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
 

@@ -3,9 +3,12 @@ package com.GesCom.service.Impl;
 import com.GesCom.dto.request.*;
 import com.GesCom.dto.response.*;
 import com.GesCom.enums.EstadoTransaccion;
+import com.GesCom.enums.TipoMovimientoInventario;
 import com.GesCom.enums.TipoTransaccion;
 import com.GesCom.model.*;
 import com.GesCom.repository.*;
+import com.GesCom.service.ContabilidadService;
+import com.GesCom.service.SuscripcionService;
 import com.GesCom.service.TransaccionService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -31,12 +34,18 @@ public class TransaccionServiceImpl implements TransaccionService {
     private final ProveedorRepository proveedorRepository;
     private final TasaBcvRepository tasaBcvRepository;
     private final PagoRepository pagoRepository;
+    private final ProductoRepository productoRepository;
+    private final MovimientoInventarioRepository movimientoInventarioRepository;
+    private final ContabilidadService contabilidadService;
+    private final SuscripcionService suscripcionService;
 
     private static final BigDecimal IGTF_RATE = new BigDecimal("3.00");
 
     @Override
     @Transactional
     public TransaccionResponse crear(CrearTransaccionRequest request, Long empresaId) {
+
+        suscripcionService.verificarLimiteTransacciones(empresaId);
 
         Empresa empresa = empresaRepository.findById(empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Empresa no encontrada"));
@@ -163,7 +172,9 @@ public class TransaccionServiceImpl implements TransaccionService {
                 .totalUsd(totalUsd)
                 .totalVes(totalVes)
                 .metodoPago(request.metodoPago())
-                .estado(EstadoTransaccion.PENDIENTE)
+                .estado(request.pendiente() != null && request.pendiente()
+                        ? EstadoTransaccion.PENDIENTE
+                        : EstadoTransaccion.PAGADA)
                 .notas(request.notas())
                 .numeroFactura(numeroFactura)
                 .build();
@@ -175,6 +186,12 @@ public class TransaccionServiceImpl implements TransaccionService {
         transaccion.setLineas(lineas);
 
         transaccionRepository.save(transaccion);
+
+        // ─── 10. Actualizar inventario (si aplica) ──────────────────
+        procesarInventario(transaccion, request.tipo());
+
+        // ─── 11. Generar asiento contable automático (RF-47) ─────────
+        contabilidadService.crearAsientoAutomatico(transaccion);
 
         log.info("Transacción creada: id={}, tipo={}, total={} {}, factura={}",
                 transaccion.getTransaccionId(), request.tipo(), total,
@@ -251,6 +268,9 @@ public class TransaccionServiceImpl implements TransaccionService {
         t.setEstado(EstadoTransaccion.ANULADA);
         t.setMotivoAnulacion(motivo);
         transaccionRepository.save(t);
+
+        // Revertir movimientos de inventario
+        revertirInventario(t);
 
         log.info("Transacción {} anulada. Motivo: {}", id, motivo);
     }
@@ -430,6 +450,115 @@ public class TransaccionServiceImpl implements TransaccionService {
         return transaccionRepository
                 .findByTransaccionIdAndEmpresa_EmpresaId(id, empresaId)
                 .orElseThrow(() -> new EntityNotFoundException("Transacción no encontrada"));
+    }
+
+    // ─── Inventario: procesar movimientos al crear transacción ────
+
+    private void procesarInventario(Transaccion transaccion, TipoTransaccion tipoTransaccion) {
+        // Solo aplica para INGRESO (venta → salida de stock) y EGRESO (compra → entrada de stock)
+        if (tipoTransaccion != TipoTransaccion.INGRESO && tipoTransaccion != TipoTransaccion.EGRESO) {
+            return;
+        }
+
+        for (TransaccionLinea linea : transaccion.getLineas()) {
+            if (linea.getProductoId() == null) continue;
+
+            // Producto DEBE existir si se especificó productoId. Sin excepciones.
+            Producto producto = productoRepository.findById(linea.getProductoId())
+                    .orElseThrow(() -> new EntityNotFoundException(
+                            "Producto con ID " + linea.getProductoId() + " no encontrado. "
+                            + "La línea «" + linea.getDescripcion() + "» referencia un producto que ya no existe."));
+
+            TipoMovimientoInventario tipoMov = (tipoTransaccion == TipoTransaccion.INGRESO)
+                    ? TipoMovimientoInventario.SALIDA   // venta → disminuye stock
+                    : TipoMovimientoInventario.ENTRADA; // compra → aumenta stock
+
+            // Validar stock suficiente para salidas
+            if (tipoMov == TipoMovimientoInventario.SALIDA
+                    && producto.getStockActual().subtract(linea.getCantidad()).compareTo(BigDecimal.ZERO) < 0
+                    && !producto.isVentaBajoPedido()) {
+                throw new IllegalStateException(
+                        "Stock insuficiente para «" + producto.getNombre() + "». Disponible: "
+                        + producto.getStockActual() + " " + producto.getUnidadMedida()
+                        + ". Active 'Venta bajo pedido' para permitir stock negativo.");
+            }
+
+            // Actualizar stock del producto
+            BigDecimal nuevoStock = (tipoMov == TipoMovimientoInventario.ENTRADA)
+                    ? producto.getStockActual().add(linea.getCantidad())
+                    : producto.getStockActual().subtract(linea.getCantidad());
+            producto.setStockActual(nuevoStock);
+
+            // Si es una compra y el producto no tenía costo, se actualiza
+            if (tipoTransaccion == TipoTransaccion.EGRESO
+                    && (producto.getCostoUnitario() == null
+                        || producto.getCostoUnitario().compareTo(BigDecimal.ZERO) == 0)) {
+                producto.setCostoUnitario(linea.getPrecioUnitario());
+            }
+
+            productoRepository.save(producto);
+
+            // Determinar costo unitario del movimiento
+            BigDecimal costoMov = (tipoTransaccion == TipoTransaccion.EGRESO)
+                    ? linea.getPrecioUnitario()       // costo de adquisición
+                    : producto.getCostoUnitario();    // costo registrado del producto
+
+            // Registrar movimiento de inventario
+            MovimientoInventario mov = MovimientoInventario.builder()
+                    .producto(producto)
+                    .tipo(tipoMov)
+                    .cantidad(linea.getCantidad())
+                    .costoUnitario(costoMov)
+                    .motivo(tipoTransaccion == TipoTransaccion.INGRESO
+                            ? "Venta — Factura " + (transaccion.getNumeroFactura() != null
+                                ? transaccion.getNumeroFactura() : "#" + transaccion.getTransaccionId())
+                            : "Compra — Transacción #" + transaccion.getTransaccionId())
+                    .transaccionId(transaccion.getTransaccionId())
+                    .build();
+            movimientoInventarioRepository.save(mov);
+
+            log.info("Inventario actualizado: producto={}, tipo={}, cant={}, nuevoStock={}",
+                    producto.getNombre(), tipoMov, linea.getCantidad(), nuevoStock);
+        }
+    }
+
+    // ─── Inventario: revertir movimientos al anular transacción ────
+
+    private void revertirInventario(Transaccion transaccion) {
+        List<MovimientoInventario> movsOriginales = movimientoInventarioRepository
+                .findByTransaccionId(transaccion.getTransaccionId());
+
+        if (movsOriginales.isEmpty()) return;
+
+        for (MovimientoInventario original : movsOriginales) {
+            Producto producto = original.getProducto();
+            TipoMovimientoInventario tipoReverso = (original.getTipo() == TipoMovimientoInventario.ENTRADA)
+                    ? TipoMovimientoInventario.SALIDA
+                    : TipoMovimientoInventario.ENTRADA;
+
+            // Revertir stock
+            BigDecimal nuevoStock = (tipoReverso == TipoMovimientoInventario.ENTRADA)
+                    ? producto.getStockActual().add(original.getCantidad())
+                    : producto.getStockActual().subtract(original.getCantidad());
+            producto.setStockActual(nuevoStock);
+            productoRepository.save(producto);
+
+            // Registrar movimiento de reversión
+            MovimientoInventario reverso = MovimientoInventario.builder()
+                    .producto(producto)
+                    .tipo(tipoReverso)
+                    .cantidad(original.getCantidad())
+                    .costoUnitario(original.getCostoUnitario())
+                    .motivo("Anulación transacción #" + transaccion.getTransaccionId()
+                            + " — " + (transaccion.getMotivoAnulacion() != null
+                                ? transaccion.getMotivoAnulacion() : "sin motivo"))
+                    .transaccionId(transaccion.getTransaccionId())
+                    .build();
+            movimientoInventarioRepository.save(reverso);
+
+            log.info("Inventario revertido: producto={}, tipo={}, cant={}, nuevoStock={}",
+                    producto.getNombre(), tipoReverso, original.getCantidad(), nuevoStock);
+        }
     }
 
     private TransaccionResponse toResponse(Transaccion t) {

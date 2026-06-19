@@ -7,5 +7,7 @@ public record AdjuntoResponse(
         String nombreOriginal,
         String tipoArchivo,
         Long tamanio,
+        Long transaccionId,
+        String numeroFactura,
         LocalDateTime createdAt
 ) {}

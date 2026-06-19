@@ -11,6 +11,7 @@ import java.util.List;
 
 public interface MovimientoInventarioRepository extends JpaRepository<MovimientoInventario, Long> {
     List<MovimientoInventario> findByProducto_ProductoIdOrderByCreatedAtDesc(Long productoId);
+    List<MovimientoInventario> findByTransaccionId(Long transaccionId);
 
     Page<MovimientoInventario> findByProducto_Empresa_EmpresaIdOrderByCreatedAtDesc(Long empresaId, Pageable pageable);
     Page<MovimientoInventario> findByProducto_Empresa_EmpresaIdAndTipoOrderByCreatedAtDesc(Long empresaId, TipoMovimientoInventario tipo, Pageable pageable);
