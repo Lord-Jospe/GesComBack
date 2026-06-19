@@ -60,4 +60,4 @@ application:
       secret-key: dGhpcy1pcy1hLXZlcnktc2VjdXJlLWtleS1mb3Itand0
       expiration: 86400000
   super-admin:
-    email: ${SUPER_ADMIN_EMAIL:gescomservicetechnologycompany@gmail.com}
+    email: ${SUPER_ADMIN_EMAIL:}
