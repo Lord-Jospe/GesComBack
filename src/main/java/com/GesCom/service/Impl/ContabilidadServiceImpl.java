@@ -306,24 +306,51 @@ public class ContabilidadServiceImpl implements ContabilidadService {
 
         BigDecimal totalIngresos = BigDecimal.ZERO;
         BigDecimal totalGastos = BigDecimal.ZERO;
+        Map<String, BigDecimal[]> detalleMap = new LinkedHashMap<>();
 
         for (AsientoContable a : asientos) {
             for (LineaAsiento l : a.getLineas()) {
                 TipoCuenta tipo = l.getCuenta().getTipoCuenta();
+                BigDecimal monto = l.isEsDebito() ? l.getMonto() : l.getMonto();
                 if (tipo == TipoCuenta.INGRESO) {
-                    if (l.isEsDebito()) totalIngresos = totalIngresos.subtract(l.getMonto());
-                    else totalIngresos = totalIngresos.add(l.getMonto());
+                    if (l.isEsDebito()) totalIngresos = totalIngresos.subtract(monto);
+                    else totalIngresos = totalIngresos.add(monto);
+                    detalleMap.computeIfAbsent(l.getCuenta().getCodigo() + "|" + l.getCuenta().getNombre(), k -> new BigDecimal[2]);
+                    detalleMap.get(l.getCuenta().getCodigo() + "|" + l.getCuenta().getNombre())[0] =
+                            (detalleMap.get(l.getCuenta().getCodigo() + "|" + l.getCuenta().getNombre())[0] != null
+                                    ? detalleMap.get(l.getCuenta().getCodigo() + "|" + l.getCuenta().getNombre())[0] : BigDecimal.ZERO)
+                                    .add(l.isEsDebito() ? monto.negate() : monto);
                 } else if (tipo == TipoCuenta.GASTO) {
-                    if (l.isEsDebito()) totalGastos = totalGastos.add(l.getMonto());
-                    else totalGastos = totalGastos.subtract(l.getMonto());
+                    if (l.isEsDebito()) totalGastos = totalGastos.add(monto);
+                    else totalGastos = totalGastos.subtract(monto);
+                    detalleMap.computeIfAbsent(l.getCuenta().getCodigo() + "|" + l.getCuenta().getNombre(), k -> new BigDecimal[2]);
+                    detalleMap.get(l.getCuenta().getCodigo() + "|" + l.getCuenta().getNombre())[1] =
+                            (detalleMap.get(l.getCuenta().getCodigo() + "|" + l.getCuenta().getNombre())[1] != null
+                                    ? detalleMap.get(l.getCuenta().getCodigo() + "|" + l.getCuenta().getNombre())[1] : BigDecimal.ZERO)
+                                    .add(l.isEsDebito() ? monto : monto.negate());
                 }
+            }
+        }
+
+        List<EstadoResultadosResponse.DetalleItem> detalle = new ArrayList<>();
+        for (var entry : detalleMap.entrySet()) {
+            String[] parts = entry.getKey().split("\\|");
+            BigDecimal[] vals = entry.getValue();
+            if (vals[0] != null && vals[0].compareTo(BigDecimal.ZERO) != 0) {
+                detalle.add(EstadoResultadosResponse.DetalleItem.builder()
+                        .cuentaCodigo(parts[0]).cuentaNombre(parts[1]).tipo("INGRESO").monto(vals[0]).build());
+            }
+            if (vals[1] != null && vals[1].compareTo(BigDecimal.ZERO) != 0) {
+                detalle.add(EstadoResultadosResponse.DetalleItem.builder()
+                        .cuentaCodigo(parts[0]).cuentaNombre(parts[1]).tipo("GASTO").monto(vals[1]).build());
             }
         }
 
         return EstadoResultadosResponse.builder()
                 .fechaInicio(desde).fechaFin(hasta)
                 .totalIngresos(totalIngresos).totalGastos(totalGastos)
-                .utilidadNeta(totalIngresos.subtract(totalGastos)).build();
+                .utilidadNeta(totalIngresos.subtract(totalGastos))
+                .detalle(detalle).build();
     }
 
     // ─── Balance General (RF-52) ──────────────────────────────────
