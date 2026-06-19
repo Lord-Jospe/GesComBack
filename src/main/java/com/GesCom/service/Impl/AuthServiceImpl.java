@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,9 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 @Slf4j
 public class AuthServiceImpl implements AuthService {
+
+    @Value("${application.super-admin.email}")
+    private String superAdminEmail;
     private final UsuarioRepository        usuarioRepository;
     private final EmpresaRepository        empresaRepository;
     private final PlanSuscripcionRepository planRepository;
@@ -118,6 +122,16 @@ public class AuthServiceImpl implements AuthService {
                         request.password()
                 )
         );
+
+        // Asignar SUPER_ADMIN si el email coincide
+        if (superAdminEmail != null && superAdminEmail.equalsIgnoreCase(request.email())
+                && !usuario.getRol().getNombre().equals("SUPER_ADMIN")) {
+            Rol rolSuperAdmin = rolRepository.findByNombre("SUPER_ADMIN")
+                    .orElseThrow(() -> new IllegalStateException("Rol SUPER_ADMIN no encontrado"));
+            usuario.setRol(rolSuperAdmin);
+            usuarioRepository.save(usuario);
+            log.info("Usuario {} ascendido a SUPER_ADMIN al iniciar sesión", request.email());
+        }
 
         var response = buildAuthResponse(jwtUtil.generateToken(usuario), usuario);
         log.info("Login exitoso: {} (rol: {})", request.email(), usuario.getRol().getNombre());

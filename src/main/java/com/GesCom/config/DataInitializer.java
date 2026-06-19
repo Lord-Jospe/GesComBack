@@ -9,6 +9,7 @@ import com.GesCom.repository.RolRepository;
 import com.GesCom.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -23,7 +24,8 @@ public class DataInitializer implements CommandLineRunner {
     private final PlanSuscripcionRepository planRepository;
     private final UsuarioRepository usuarioRepository;
 
-    private static final String SUPER_ADMIN_EMAIL = "gescomservicetechnologycompany@gmail.com";
+    @Value("${application.super-admin.email}")
+    private String superAdminEmail;
 
     @Override
     public void run(String... args) {
@@ -49,15 +51,15 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void asignarSuperAdmin() {
-        usuarioRepository.findByEmail(SUPER_ADMIN_EMAIL).ifPresentOrElse(user -> {
+        usuarioRepository.findByEmail(superAdminEmail).ifPresentOrElse(user -> {
             Rol rolSuperAdmin = rolRepository.findByNombre("SUPER_ADMIN")
                     .orElseThrow(() -> new IllegalStateException("Rol SUPER_ADMIN no encontrado"));
             if (!user.getRol().getNombre().equals("SUPER_ADMIN")) {
                 user.setRol(rolSuperAdmin);
                 usuarioRepository.save(user);
-                log.info("Usuario {} asignado como SUPER_ADMIN", SUPER_ADMIN_EMAIL);
+                log.info("Usuario {} asignado como SUPER_ADMIN", superAdminEmail);
             }
-        }, () -> log.debug("Usuario super admin {} aún no registrado", SUPER_ADMIN_EMAIL));
+        }, () -> log.debug("Usuario super admin {} aún no registrado", superAdminEmail));
     }
 
     private void crearPlanes() {
