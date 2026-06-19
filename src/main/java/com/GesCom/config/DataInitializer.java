@@ -1,9 +1,12 @@
 package com.GesCom.config;
 
+import com.GesCom.enums.NombreRol;
 import com.GesCom.model.PlanSuscripcion;
 import com.GesCom.model.Rol;
+import com.GesCom.model.Usuario;
 import com.GesCom.repository.PlanSuscripcionRepository;
 import com.GesCom.repository.RolRepository;
+import com.GesCom.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -11,10 +14,6 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 
-/**
- * Precarga en base de datos los roles y planes de suscripción
- * si no existen todavía. Idempotente: no inserta duplicados.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -22,31 +21,43 @@ public class DataInitializer implements CommandLineRunner {
 
     private final RolRepository rolRepository;
     private final PlanSuscripcionRepository planRepository;
+    private final UsuarioRepository usuarioRepository;
+
+    private static final String SUPER_ADMIN_EMAIL = "gescomservicetechnologycompany@gmail.com";
 
     @Override
     public void run(String... args) {
         crearRoles();
         crearPlanes();
+        asignarSuperAdmin();
     }
 
     private void crearRoles() {
-        if (rolRepository.count() == 0) {
-            rolRepository.save(Rol.builder()
-                    .nombre("ADMIN")
-                    .descripcion("Administrador de la empresa — acceso total")
-                    .build());
-            rolRepository.save(Rol.builder()
-                    .nombre("CONTADOR")
-                    .descripcion("Contador — acceso a transacciones, contabilidad y reportes")
-                    .build());
-            rolRepository.save(Rol.builder()
-                    .nombre("OPERADOR")
-                    .descripcion("Operador de caja — acceso limitado a ventas y clientes")
-                    .build());
-            log.info("Roles pre-cargados: ADMIN, CONTADOR, OPERADOR");
-        } else {
-            log.info("Roles ya existentes: {}", rolRepository.count());
+        for (NombreRol nr : NombreRol.values()) {
+            if (rolRepository.findByNombre(nr.name()).isEmpty()) {
+                String desc = switch (nr) {
+                    case SUPER_ADMIN -> "Super administrador — gestiona todas las empresas y suscripciones";
+                    case ADMIN -> "Administrador de la empresa — acceso total";
+                    case CONTADOR -> "Contador — acceso a transacciones, contabilidad y reportes";
+                    case OPERADOR -> "Operador de caja — acceso limitado a ventas y clientes";
+                };
+                rolRepository.save(Rol.builder().nombre(nr.name()).descripcion(desc).build());
+                log.info("Rol creado: {}", nr.name());
+            }
         }
+        log.info("Roles existentes: {}", rolRepository.count());
+    }
+
+    private void asignarSuperAdmin() {
+        usuarioRepository.findByEmail(SUPER_ADMIN_EMAIL).ifPresentOrElse(user -> {
+            Rol rolSuperAdmin = rolRepository.findByNombre("SUPER_ADMIN")
+                    .orElseThrow(() -> new IllegalStateException("Rol SUPER_ADMIN no encontrado"));
+            if (!user.getRol().getNombre().equals("SUPER_ADMIN")) {
+                user.setRol(rolSuperAdmin);
+                usuarioRepository.save(user);
+                log.info("Usuario {} asignado como SUPER_ADMIN", SUPER_ADMIN_EMAIL);
+            }
+        }, () -> log.debug("Usuario super admin {} aún no registrado", SUPER_ADMIN_EMAIL));
     }
 
     private void crearPlanes() {

@@ -9,7 +9,8 @@ import java.util.Optional;
 
 public interface SuscripcionRepository extends JpaRepository<Suscripcion, Long > {
     Optional<Suscripcion> findByEmpresa_EmpresaIdAndEstado(Long empresaId, String estado);
+    List<Suscripcion> findAllByEmpresa_EmpresaIdAndEstado(Long empresaId, String estado);
+    long countByEstado(String estado);
 
-    // Para el vencimiento automático
     List<Suscripcion> findByEstadoAndFechaVenceBefore(String estado, LocalDate fecha);
 }
